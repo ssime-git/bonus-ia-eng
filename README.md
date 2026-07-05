@@ -68,8 +68,20 @@ make j6-hitl# J6 avec validation humaine (interactif)
 Pas encore `uv` ?  `curl -LsSf https://astral.sh/uv/install.sh | sh`
 (ou `brew install uv` / `pipx install uv`).
 
+Pour les parties LLM, une clé **Groq** (API compatible OpenAI) est déjà fournie
+dans `.env` (non commité) — rien à configurer, les scripts la lisent directement :
+
 ```bash
-# (Optionnel) pour les parties LLM — variables d'environnement :
+# .env (déjà en place)
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_API_KEY=...
+LLM_MODEL=llama-3.3-70b-versatile
+```
+
+Pour utiliser un autre fournisseur, surchargez ces variables (export shell ou
+édition de `.env`) :
+
+```bash
 export LLM_BASE_URL="https://api.openai.com/v1"   # ou l'endpoint interne AIChat
 export LLM_API_KEY="votre-cle"
 export LLM_MODEL="gpt-4o-mini"

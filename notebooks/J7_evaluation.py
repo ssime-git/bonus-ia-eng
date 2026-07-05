@@ -15,7 +15,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -30,7 +30,8 @@ def _(mo):
 
         ### Mode d'emploi
         Cours à lire de haut en bas. **🎯 Exercice** = à vous ; **🔓 Solution** = à déplier
-        après. **Autoportant** : données incluses, aucune clé d'IA.
+        après. **Autoportant** : données incluses ; clé d'IA **optionnelle** (uniquement
+        pour la section finale « vrai modèle »).
         """
     )
     return
@@ -69,7 +70,7 @@ Au Fil des Saisons,S006,M,3300
     return df, pd, re
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -95,7 +96,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -136,7 +137,7 @@ def _(df, re):
     return SOURCES_VALIDES, masse, nombre_dans
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.callout(
         mo.md(
@@ -180,27 +181,38 @@ def _(SOURCES_VALIDES, re):
     return verif_refus, verif_source
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _(SOURCES_VALIDES, mo, re):
+    # La solution est EXÉCUTÉE ici même : le code affiché est garanti fonctionnel.
+    _code = '''
+    def verif_refus(reponse):
+        mots = ["ne sais pas", "ne dispose", "inconnu", "pas de donnée", "absente"]
+        return any(m in reponse.lower() for m in mots)
+
+    def verif_source(reponse):
+        citees = re.findall(r"PROC-[A-Z]+-\\d+", reponse)
+        return all(src in SOURCES_VALIDES for src in citees)
+'''
+    _code = __import__('textwrap').dedent(_code)
+    _ns = {"re": re, "SOURCES_VALIDES": SOURCES_VALIDES}
+    exec(_code, _ns)
+    _refus, _source = _ns["verif_refus"], _ns["verif_source"]
     mo.accordion(
         {
             "🔓 Solution — les deux vérificateurs": mo.md(
-                r"""
-                ```python
-                def verif_refus(reponse):
-                    mots = ["ne sais pas", "ne dispose", "inconnu", "pas de donnée", "absente"]
-                    return any(m in reponse.lower() for m in mots)
-
-                def verif_source(reponse):
-                    citees = re.findall(r"PROC-[A-Z]+-\\d+", reponse)
-                    return all(src in SOURCES_VALIDES for src in citees)
-                ```
-
-                `verif_source` est le **filet anti-hallucination** : une source citée qui
-                n'est pas dans la liste blanche fait **échouer** le test — même si le reste de
-                la réponse paraît crédible. C'est souvent là que se cachent les erreurs les
-                plus dangereuses en audit.
-                """
+                "Le code complet — **exécuté en direct** dans cette cellule :\n\n"
+                + "```python\n" + _code.strip() + "\n```\n\n"
+                + "**Tests, calculés à l'instant :**\n\n"
+                + '- `verif_refus("Je ne dispose pas de cette donnée.")` → `'
+                + str(_refus("Je ne dispose pas de cette donnée.")) + "`\n"
+                + '- `verif_source("Voir PROC-PAIE-01")` → `'
+                + str(_source("Voir PROC-PAIE-01")) + "` (source connue)\n"
+                + '- `verif_source("Voir PROC-PAIE-99")` → `'
+                + str(_source("Voir PROC-PAIE-99")) + "` (source inventée, attrapée)\n\n"
+                + "`verif_source` est le **filet anti-hallucination** : une source citée "
+                + "qui n'est pas dans la liste blanche fait **échouer** le test — même si "
+                + "le reste de la réponse paraît crédible. C'est souvent là que se cachent "
+                + "les erreurs les plus dangereuses en audit."
             )
         }
     )
@@ -221,7 +233,7 @@ def _(masse, nombre_dans, verif_refus, verif_source):
     return (QUESTIONS,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -296,7 +308,7 @@ def _(choix, mo, resultats):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -310,7 +322,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -335,6 +347,174 @@ def _(mo):
         - Une **note reproductible** remplace « ça a l'air fiable ».
         - Les cas ❌ *sont* votre section « limites identifiées » — écrite automatiquement.
         """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ---
+        # 5. Faisons-le vraiment : le harnais note un vrai modèle
+
+        Assez de simulation : notons un **vrai agent LLM** (Llama 3.3 70B via
+        [Groq](https://console.groq.com), gratuit) avec **exactement le même harnais** —
+        les 3 questions-tests et leurs vérificateurs n'ont pas bougé d'une ligne.
+
+        L'agent reçoit un outil `masse_salariale` (calculé sur `df`) et une consigne
+        stricte (« n'invente jamais, cite uniquement PROC-PAIE-01/02 »). Le harnais
+        vérifie s'il **respecte** cette consigne. Relancez plusieurs fois : la note
+        peut bouger — c'est la **stabilité** que vous mesurez.
+
+        > 🔒 La clé reste dans votre navigateur : elle n'est ni enregistrée ni publiée.
+        > En local (`marimo edit`), vous pouvez laisser le champ vide et mettre
+        > `GROQ_API_KEY` dans un fichier `.env` (voir `.env_template` du dépôt).
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    cle_groq = mo.ui.text(kind="password", label="🔑 Clé Groq (gsk_…)", full_width=True)
+    lancer = mo.ui.run_button(label="Évaluer le vrai modèle (3 questions)")
+    mo.vstack([cle_groq, lancer])
+    return cle_groq, lancer
+
+
+@app.cell
+async def _(QUESTIONS, cle_groq, df, lancer, mo):
+    import json as _json
+    import sys as _sys
+
+    def _outil_masse(etablissement: str) -> str:
+        _sous = df[df["Etablissement"] == etablissement]
+        if len(_sous) == 0:  # échec PROPRE : on liste ce qui existe (le modèle peut se corriger)
+            _dispo = ", ".join(sorted(df["Etablissement"].unique()))
+            return f"Aucune donnée pour « {etablissement} ». Établissements connus : {_dispo}"
+        return f"Masse salariale de {etablissement} : {int(_sous['Brut'].sum())} €"
+
+    _OUTILS = {"masse_salariale": _outil_masse}
+    _DESCRIPTION_OUTILS = [{
+        "type": "function",
+        "function": {
+            "name": "masse_salariale",
+            "description": "Masse salariale brute mensuelle d'un établissement (restaurant).",
+            "parameters": {"type": "object",
+                           "properties": {"etablissement": {"type": "string"}},
+                           "required": ["etablissement"]},
+        },
+    }]
+
+    async def _appel_groq(messages: list, cle: str) -> dict:
+        """Un appel au modèle (API compatible OpenAI). Marche dans le navigateur ET en local."""
+        _payload = {"model": "llama-3.3-70b-versatile", "messages": messages,
+                    "tools": _DESCRIPTION_OUTILS}
+        _url = "https://api.groq.com/openai/v1/chat/completions"
+        _entetes = {"Authorization": f"Bearer {cle}", "Content-Type": "application/json"}
+        if _sys.platform == "emscripten":  # navigateur (WASM)
+            from pyodide.http import pyfetch
+            _rep = await pyfetch(_url, method="POST", headers=_entetes,
+                                 body=_json.dumps(_payload))
+            return await _rep.json()
+        import urllib.request  # exécution locale (marimo edit)
+        _entetes["User-Agent"] = "marimo-notebook/1.0"  # l'UA python-urllib est bloqué
+        _req = urllib.request.Request(_url, data=_json.dumps(_payload).encode(),
+                                      headers=_entetes)
+        try:
+            with urllib.request.urlopen(_req) as _f:
+                return _json.loads(_f.read())
+        except urllib.error.HTTPError as _e:  # renvoyer l'erreur API, lisible
+            _corps = _e.read().decode("utf-8", "replace")
+            try:
+                return _json.loads(_corps)
+            except Exception:
+                return {"error": {"message": f"HTTP {_e.code} : {_corps[:200]}"}}
+
+    async def _agent_reel(question: str, cle: str, max_tours: int = 4) -> str:
+        _messages = [
+            {"role": "system", "content": "Tu es un assistant d'audit paie. Réponds en "
+             "français, brièvement. N'invente JAMAIS un chiffre : utilise l'outil. Si les "
+             "données n'existent pas, réponds « Je ne dispose pas de cette donnée. ». "
+             "Règle métier : la base de calcul des cotisations est le brut social — "
+             "Source : PROC-PAIE-01. Tu ne peux citer que PROC-PAIE-01 ou PROC-PAIE-02."},
+            {"role": "user", "content": question},
+        ]
+        for _tour in range(1, max_tours + 1):
+            _data = await _appel_groq(_messages, cle)
+            if "error" in _data:
+                return f"Erreur API : {_data['error'].get('message', _data['error'])}"
+            _msg = _data["choices"][0]["message"]
+            if not _msg.get("tool_calls"):
+                return _msg["content"]
+            # On ré-envoie une version ASSAINIE du message (l'API refuse parfois
+            # ses propres champs additionnels renvoyés tels quels).
+            _messages.append({"role": "assistant", "content": _msg.get("content"),
+                              "tool_calls": _msg["tool_calls"]})
+            for _tc in _msg["tool_calls"]:
+                _resultat = _OUTILS[_tc["function"]["name"]](
+                    **_json.loads(_tc["function"]["arguments"]))
+                _messages.append({"role": "tool", "tool_call_id": _tc["id"],
+                                  "content": _resultat})
+        return "Trop de tours — on s'arrête."
+
+    def _cle_locale() -> str:
+        """En local seulement : lit GROQ_API_KEY / LLM_API_KEY (environnement ou .env)."""
+        if _sys.platform == "emscripten":
+            return ""
+        import os as _os
+        import pathlib as _pathlib
+        _cle = _os.environ.get("GROQ_API_KEY") or _os.environ.get("LLM_API_KEY")
+        if _cle:
+            return _cle
+        for _dossier in (_pathlib.Path.cwd(), *_pathlib.Path.cwd().parents):
+            _fichier = _dossier / ".env"
+            if _fichier.exists():
+                for _ligne in _fichier.read_text(encoding="utf-8").splitlines():
+                    _nom, _, _val = _ligne.partition("=")
+                    if _nom.strip() in ("GROQ_API_KEY", "LLM_API_KEY") and _val.strip():
+                        return _val.strip().strip('"').strip("'")
+        return ""
+
+    _cle_active = cle_groq.value.strip() or _cle_locale()
+    mo.stop(
+        not lancer.value,
+        mo.callout(mo.md("Collez une clé (ou, en local, renseignez `GROQ_API_KEY` dans "
+                         "un `.env` — voir `.env_template`), puis cliquez "
+                         "**Évaluer le vrai modèle**."),
+                   kind="neutral"),
+    )
+    mo.stop(
+        not _cle_active,
+        mo.callout(mo.md("⚠️ Il manque la clé Groq : collez-la dans le champ `gsk_…` "
+                         "ci-dessus (ou, en local, dans un `.env` — voir "
+                         "`.env_template`)."),
+                   kind="warn"),
+    )
+    _lignes = []
+    _reussites = 0
+    for _q in QUESTIONS:  # LE MÊME harnais que pour les agents simulés
+        try:
+            _rep = await _agent_reel(_q["question"], _cle_active)
+        except Exception as _e:
+            _rep = f"Échec de l'appel ({type(_e).__name__}) : {_e}"
+        _ok = bool(_q["verifie"](_rep))
+        _reussites += _ok
+        _rep_courte = str(_rep).replace("\n", " ").replace("|", "/")
+        if len(_rep_courte) > 110:
+            _rep_courte = _rep_courte[:110] + "…"
+        _lignes.append("| " + _q["id"] + " | " + _rep_courte + " | "
+                       + ("✅" if _ok else "❌") + " |")
+    _note = f"{_reussites}/{len(QUESTIONS)}"
+    mo.md(
+        "**Note de fiabilité du vrai modèle : " + _note + "**\n\n"
+        + "| Question | Réponse du modèle | Verdict |\n|---|---|---|\n"
+        + "\n".join(_lignes) + "\n\n"
+        + "Le harnais n'a **pas changé** : mêmes questions, mêmes vérificateurs — seul "
+        + "l'agent est devenu réel. Relancez pour mesurer la **stabilité**, ou durcissez "
+        + "la consigne système et observez la note. Un ❌ ici n'est pas un échec du "
+        + "notebook : c'est le harnais qui fait son travail."
     )
     return
 

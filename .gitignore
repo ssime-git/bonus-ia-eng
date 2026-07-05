@@ -4,6 +4,9 @@
 /data/
 *.zip
 
+# ── Secrets : jamais versionnés ──
+.env
+
 # ── Python ──
 __pycache__/
 *.pyc
@@ -13,6 +16,8 @@ __pycache__/
 
 # ── Build marimo / GitHub Pages ──
 _site/
+notebooks/__marimo__/
 
 # ── Divers ──
 .DS_Store
+.env

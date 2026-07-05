@@ -15,7 +15,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -29,7 +29,8 @@ def _(mo):
 
         ### Mode d'emploi
         Cours à lire de haut en bas. **🎯 Exercice** = à vous ; **🔓 Solution** = à déplier
-        après. **Autoportant** : données incluses, aucune clé d'IA.
+        après. **Autoportant** : données incluses ; clé d'IA **optionnelle** (uniquement
+        pour la section finale « vrai modèle »).
         """
     )
     return
@@ -67,7 +68,7 @@ Au Fil des Saisons,S006,M,3300
     return (df,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -100,7 +101,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -157,7 +158,7 @@ def _(df):
     return (WORKERS,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -182,7 +183,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.callout(
         mo.md(
@@ -231,41 +232,51 @@ def _(WORKERS):
     return etat_final, faire_tourner, journal, superviseur
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _(WORKERS, mo):
+    # La solution est EXÉCUTÉE ici même : le code affiché est garanti fonctionnel.
+    _code = '''
+    def superviseur(etat):
+        if "alerte"   not in etat: return "DETECTION"
+        if "controle" not in etat: return "CONTROLE"
+        if "rapport"  not in etat: return "SYNTHESE"
+        return "FIN"
+
+    def faire_tourner(max_tours=5):
+        etat, journal = {}, []
+        for _ in range(max_tours):
+            etape = superviseur(etat)              # 1. il décide
+            journal.append({"superviseur_décide": etape})
+            if etape == "FIN":
+                break
+            etat = WORKERS[etape](etat)            # 2. le worker agit
+            journal.append({"worker_exécuté": etape})
+        return etat, journal
+'''
+    _code = __import__('textwrap').dedent(_code)
+    _ns = {"WORKERS": WORKERS}
+    exec(_code, _ns)
+    _etat, _journal = _ns["faire_tourner"]()
+    _decisions = " → ".join(next(iter(d.values())) for d in _journal if "superviseur_décide" in d)
     mo.accordion(
         {
             "🔓 Solution — superviseur + boucle": mo.md(
-                r"""
-                ```python
-                def superviseur(etat):
-                    if "alerte"   not in etat: return "DETECTION"
-                    if "controle" not in etat: return "CONTROLE"
-                    if "rapport"  not in etat: return "SYNTHESE"
-                    return "FIN"
-
-                def faire_tourner(max_tours=5):
-                    etat, journal = {}, []
-                    for _ in range(max_tours):
-                        etape = superviseur(etat)              # 1. il décide
-                        journal.append({"superviseur_décide": etape})
-                        if etape == "FIN":
-                            break
-                        etat = WORKERS[etape](etat)            # 2. le worker agit
-                        journal.append({"worker_exécuté": etape})
-                    return etat, journal
-                ```
-
-                Remarquez que le superviseur **ne calcule rien** : il *lit* l'état et
-                *oriente*. Toute l'intelligence de coordination tient dans ces quatre `if`.
-                """
+                "Le code complet — **exécuté en direct** dans cette cellule :\n\n"
+                + "```python\n" + _code.strip() + "\n```\n\n"
+                + "**Test, calculé à l'instant** — `faire_tourner()` déroule bien le "
+                + "circuit complet : **" + _decisions + "**, et l'état final contient un "
+                + "rapport :\n\n"
+                + "> " + str(_etat.get("rapport")) + "\n\n"
+                + "Remarquez que le superviseur **ne calcule rien** : il *lit* l'état et "
+                + "*oriente*. Toute l'intelligence de coordination tient dans ces quatre "
+                + "`if`."
             )
         }
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(etat_final, journal, mo):
     mo.md(
         f"""
@@ -305,7 +316,7 @@ def _(mo, superviseur):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -347,7 +358,7 @@ def _(etat_final, mo, seuil, valider):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -362,6 +373,151 @@ def _(mo):
         - Chaque worker a **un** rôle → un **journal** « qui a fait quoi » exploitable.
         - Le **HITL** se place sur les cas à fort enjeu, et se journalise.
         """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ---
+        # 5. Essayez avec un vrai modèle — le superviseur devient un LLM
+
+        Notre superviseur à `if` est déterministe et testable. L'alternative « à la mode » :
+        confier le **routage** à un vrai modèle (Llama 3.3 70B via
+        [Groq](https://console.groq.com), gratuit). À chaque tour, on lui décrit l'état et
+        il choisit la prochaine étape. Les **workers ne changent pas** — seul le chef
+        d'orchestre est remplacé.
+
+        Comparez le journal obtenu avec celui de la machine à états : souvent identique…
+        mais **rien ne le garantit**. C'est tout l'enjeu : un superviseur LLM est plus
+        souple, et moins prévisible — il *s'évalue* (J7) là où l'autre se *teste*.
+
+        > 🔒 La clé reste dans votre navigateur : elle n'est ni enregistrée ni publiée.
+        > En local (`marimo edit`), vous pouvez laisser le champ vide et mettre
+        > `GROQ_API_KEY` dans un fichier `.env` (voir `.env_template` du dépôt).
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    cle_groq = mo.ui.text(kind="password", label="🔑 Clé Groq (gsk_…)", full_width=True)
+    lancer = mo.ui.run_button(label="Lancer la chaîne avec un superviseur LLM")
+    mo.vstack([cle_groq, lancer])
+    return cle_groq, lancer
+
+
+@app.cell
+async def _(WORKERS, cle_groq, lancer, mo):
+    import json as _json
+    import sys as _sys
+
+    async def _appel_groq(messages: list, cle: str) -> dict:
+        """Un appel au modèle (API compatible OpenAI). Marche dans le navigateur ET en local."""
+        _payload = {"model": "llama-3.3-70b-versatile", "messages": messages,
+                    "temperature": 0}
+        _url = "https://api.groq.com/openai/v1/chat/completions"
+        _entetes = {"Authorization": f"Bearer {cle}", "Content-Type": "application/json"}
+        if _sys.platform == "emscripten":  # navigateur (WASM)
+            from pyodide.http import pyfetch
+            _rep = await pyfetch(_url, method="POST", headers=_entetes,
+                                 body=_json.dumps(_payload))
+            return await _rep.json()
+        import urllib.request  # exécution locale (marimo edit)
+        _entetes["User-Agent"] = "marimo-notebook/1.0"  # l'UA python-urllib est bloqué
+        _req = urllib.request.Request(_url, data=_json.dumps(_payload).encode(),
+                                      headers=_entetes)
+        try:
+            with urllib.request.urlopen(_req) as _f:
+                return _json.loads(_f.read())
+        except urllib.error.HTTPError as _e:  # renvoyer l'erreur API, lisible
+            _corps = _e.read().decode("utf-8", "replace")
+            try:
+                return _json.loads(_corps)
+            except Exception:
+                return {"error": {"message": f"HTTP {_e.code} : {_corps[:200]}"}}
+
+    _CONSIGNE = (
+        "Tu es le superviseur d'une chaîne d'audit de paie. Étapes possibles : "
+        "DETECTION, CONTROLE, SYNTHESE, FIN. Règles : DETECTION produit la clé 'alerte' ; "
+        "CONTROLE (uniquement après 'alerte') produit 'controle' ; SYNTHESE (uniquement "
+        "après 'controle') produit 'rapport' ; quand 'rapport' est présent, réponds FIN. "
+        "Réponds par UN SEUL mot, sans explication."
+    )
+
+    async def _superviseur_llm(etat: dict, cle: str) -> str:
+        _cles = sorted(etat.keys()) or ["(état vide)"]
+        _data = await _appel_groq([
+            {"role": "system", "content": _CONSIGNE},
+            {"role": "user", "content": f"Clés présentes dans l'état : {_cles}. "
+                                        "Prochaine étape ?"},
+        ], cle)
+        if "error" in _data:
+            raise RuntimeError(_data["error"].get("message", str(_data["error"])))
+        _mot = _data["choices"][0]["message"]["content"].strip().upper()
+        for _etape in ("DETECTION", "CONTROLE", "SYNTHESE", "FIN"):
+            if _etape in _mot:
+                return _etape
+        return "FIN"  # réponse illisible → on s'arrête proprement
+
+    def _cle_locale() -> str:
+        """En local seulement : lit GROQ_API_KEY / LLM_API_KEY (environnement ou .env)."""
+        if _sys.platform == "emscripten":
+            return ""
+        import os as _os
+        import pathlib as _pathlib
+        _cle = _os.environ.get("GROQ_API_KEY") or _os.environ.get("LLM_API_KEY")
+        if _cle:
+            return _cle
+        for _dossier in (_pathlib.Path.cwd(), *_pathlib.Path.cwd().parents):
+            _fichier = _dossier / ".env"
+            if _fichier.exists():
+                for _ligne in _fichier.read_text(encoding="utf-8").splitlines():
+                    _nom, _, _val = _ligne.partition("=")
+                    if _nom.strip() in ("GROQ_API_KEY", "LLM_API_KEY") and _val.strip():
+                        return _val.strip().strip('"').strip("'")
+        return ""
+
+    _cle_active = cle_groq.value.strip() or _cle_locale()
+    mo.stop(
+        not lancer.value,
+        mo.callout(mo.md("Collez une clé (ou, en local, renseignez `GROQ_API_KEY` dans "
+                         "un `.env` — voir `.env_template`), puis cliquez "
+                         "**Lancer la chaîne avec un superviseur LLM**."),
+                   kind="neutral"),
+    )
+    mo.stop(
+        not _cle_active,
+        mo.callout(mo.md("⚠️ Il manque la clé Groq : collez-la dans le champ `gsk_…` "
+                         "ci-dessus (ou, en local, dans un `.env` — voir "
+                         "`.env_template`)."),
+                   kind="warn"),
+    )
+    try:
+        _etat, _journal_llm = {}, []
+        for _ in range(6):  # garde-fou : un LLM peut boucler, pas notre programme
+            _etape = await _superviseur_llm(_etat, _cle_active)
+            _journal_llm.append({"superviseur_LLM_décide": _etape})
+            if _etape == "FIN":
+                break
+            _etat = WORKERS[_etape](_etat)
+            _journal_llm.append({"worker_exécuté": _etape})
+        _erreur = ""
+    except Exception as _e:
+        _erreur = f"Échec de l'appel ({type(_e).__name__}) : {_e}"
+    mo.stop(bool(_erreur), mo.callout(mo.md("⚠️ " + _erreur), kind="danger"))
+    _circuit = " → ".join(next(iter(_d.values())) for _d in _journal_llm
+                          if "superviseur_LLM_décide" in _d)
+    mo.md(
+        "**Circuit décidé par le modèle :** " + _circuit + "\n\n"
+        + "**Journal complet :** `" + str(_journal_llm) + "`\n\n"
+        + "**Rapport produit :**\n\n> " + str(_etat.get("rapport", "(aucun)")) + "\n\n"
+        + "Mêmes workers, même journal — seul le **routage** vient du modèle. Relancez "
+        + "plusieurs fois : la machine à états donne *toujours* le même circuit ; le LLM, "
+        + "*presque* toujours. Cette nuance est exactement ce que le harnais du J7 mesure."
     )
     return
 

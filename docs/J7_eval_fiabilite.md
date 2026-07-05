@@ -4,7 +4,7 @@
 > charges), S19-S20 (grille d'évaluation, « limites identifiées = critère noté »),
 > S21 (RGPD). C'est la **couche d'ingénieur** qui manque au prototype no-code.
 > **Pour qui** : votre prototype Product Build tourne, vous voulez le *prouver fiable*.
-> **Durée** : 45–60 min. **Fichier** : `code/j7_eval.py` (tourne **sans LLM**).
+> **Durée** : 45–60 min. **Fichier** : `code/j7_eval.py` (tourne **sans LLM**, `make j7`).
 
 ## Pourquoi cette fiche
 
@@ -29,7 +29,7 @@ et **validité de source** — puis produire une scorecard.
 ## Étape 1 — Voir le harnais attraper une faute (sans LLM)
 
 ```bash
-python3 code/j7_eval.py
+make j7
 ```
 
 Deux agents simulés sont évalués :
@@ -44,7 +44,7 @@ Deux agents simulés sont évalués :
 la main : elles tombent d'un test qu'on peut relancer à chaque modification du
 prompt ou du flow (non-régression).
 
-## Étape 2 — Lire les quatre types de contrôle
+## Étape 2 — Lire les trois types de contrôle
 
 Dans `GOLD`, chaque cas a un `type` :
 

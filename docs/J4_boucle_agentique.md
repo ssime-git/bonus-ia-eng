@@ -3,7 +3,7 @@
 > **Prolonge** : J4 S05 (function calling), S06 (la boucle modèle ≠ harnais),
 > S08 (anatomie d'un tour), S09/S17 (prompt système), S16 (« votre cas : débug »).
 > **Pour qui** : vous avez fini l'atelier « agent simple → agent RAG » et vous codez.
-> **Durée** : 30–45 min. **Fichier** : `code/j4_agent.py`.
+> **Durée** : 30–45 min. **Fichier** : `code/j4_agent.py` (`make j4`).
 
 ## Pourquoi cette fiche
 
@@ -26,7 +26,7 @@ Ouvrez `code/j4_agent.py`. Un « outil », côté code, c'est **juste une foncti
 plus un schéma JSON qui la décrit au modèle. Lancez :
 
 ```bash
-python3 code/j4_agent.py
+make j4
 ```
 
 Vous devez voir `calculatrice(...)` et `masse_salariale('Le Chaudron')` répondre
@@ -39,8 +39,9 @@ dans `TOOLS_SPEC` **et** dans le registre `OUTILS`. Testez-le seul.
 
 ## Étape 2 — La boucle (avec LLM)
 
-Configurez une clé (voir README), puis décommentez le bloc `run_agent(...)` en bas
-du fichier et relancez. Posez :
+Une clé Groq est déjà fournie dans `.env` (`GROQ_API_KEY` / `LLM_API_KEY`, voir
+README) — rien à configurer. Décommentez simplement le bloc `run_agent(...)` en
+bas du fichier et relancez (`make j4`). Posez :
 
 > « Quelle est la masse salariale brute du Chaudron, et combien font 15,3 % de ce
 > montant ? »

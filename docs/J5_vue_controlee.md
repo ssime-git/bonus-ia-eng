@@ -3,7 +3,7 @@
 > **Prolonge** : J5 S04 (document/outil/vue), S15-S18 (50 000 lignes dans un prompt ?),
 > S24-S26 (node Custom MCP, les 5 outils), S28 (stratégies d'échelle).
 > **Pour qui** : vous avez branché l'agent au serveur MCP et posé vos questions ciblées.
-> **Durée** : 30–45 min. **Fichier** : `code/j5_tools.py` (tourne **sans LLM**).
+> **Durée** : 30–45 min. **Fichier** : `code/j5_tools.py` (tourne **sans LLM**, `make j5`).
 
 ## Pourquoi cette fiche
 
@@ -24,21 +24,24 @@ vs celui de la vue.
 ## Étape 1 — La démo qui tue le débat (sans LLM)
 
 ```bash
-python3 code/j5_tools.py
+make j5
 ```
 
 Regardez le tableau final :
 
 | Contenu | Lignes | Tokens | Coût/appel |
 |---|---:|---:|---:|
-| Brut LIORA (~7 200 lignes) | 7 219 | ~327 000 | ~0,05 € |
-| Gros lot (~50 000 lignes) | 50 533 | **~2 290 000** | ~0,34 € |
-| Vue agrégée (16 lignes) | 1 | **432** | ~0,0001 € |
+| Brut LIORA (~7 200 lignes) | 7 219 | ~660 000 | ~0,10 € |
+| Gros lot (~50 000 lignes) | 50 533 | **~4 620 000** | ~0,69 € |
+| Vue agrégée (16 lignes) | 1 | **~655** | ~0,0001 € |
 
-**Le point à faire passer** : 2,29 M de tokens, *ça ne rentre dans aucun modèle*
+(Ordres de grandeur — recalculez avec `make j5`, `_n_tokens` dépend de la
+version de `tiktoken` et du contenu exact des CSV.)
+
+**Le point à faire passer** : 4,6 M de tokens, *ça ne rentre dans aucun modèle*
 (la fenêtre sature — S15). Ce n'est donc pas « un plus gros modèle » la réponse
 (S16), c'est **exposer une vue**. La vue agrégée répond à la même question
-d'audit (masse salariale par établissement) pour ~5 000× moins cher, **et** sans
+d'audit (masse salariale par établissement) pour ~7 000× moins cher, **et** sans
 sortir une seule ligne nominative. C'est S28 « pré-agrégation / filtrage côté
 outil » démontré, pas affirmé.
 

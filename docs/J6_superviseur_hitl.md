@@ -4,7 +4,7 @@
 > même boucle, l'outil = un agent »), S11-S12 (3 workers spécialisés),
 > S14-S16 (node Human Input), S24 (traçabilité notée).
 > **Pour qui** : vous avez construit la mini-chaîne détecter → vérifier → restituer.
-> **Durée** : 40–50 min. **Fichier** : `code/j6_supervisor.py` (tourne **sans LLM**).
+> **Durée** : 40–50 min. **Fichier** : `code/j6_supervisor.py` (tourne **sans LLM**, `make j6`).
 
 ## Pourquoi cette fiche
 
@@ -25,7 +25,7 @@ humaine avant la restitution.
 ## Étape 1 — Faire tourner la chaîne (sans LLM)
 
 ```bash
-python3 code/j6_supervisor.py
+make j6
 ```
 
 Lisez le **journal de traçabilité**. Vous voyez le superviseur choisir un état par
@@ -55,9 +55,8 @@ la chaîne **sans toucher aux autres** — c'est le bénéfice de la spécialisa
 
 Relancez en mode interactif :
 
-```python
-from code.j6_supervisor import run
-etat, journal = run(hitl=True)     # demande la validation dans le terminal
+```bash
+make j6-hitl     # demande la validation dans le terminal
 ```
 
 `demande_validation_humaine` = l'équivalent code du **node Human Input** (S15).

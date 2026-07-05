@@ -15,7 +15,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -36,15 +36,16 @@ def _(mo):
         - des blocs **🔓 Solution** repliés : dépliez-les *après* avoir cherché.
 
         > Tout est **autoportant** : les données d'exemple sont incluses dans le notebook,
-        > rien à installer ni à télécharger. Aucune clé d'IA n'est nécessaire — nous
-        > *simulerons* le modèle pour bien voir la mécanique, puis nous montrerons comment
-        > brancher un vrai modèle en une ligne.
+        > rien à installer ni à télécharger. Aucune clé d'IA n'est nécessaire pour le cœur
+        > du cours — nous *simulerons* le modèle pour bien voir la mécanique. En fin de
+        > notebook, vous pourrez brancher un **vrai modèle** (gratuit, via Groq) en collant
+        > simplement une clé.
         """
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -101,7 +102,7 @@ def _(df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df, mo):
     mo.md(
         f"""
@@ -114,7 +115,7 @@ def _(df, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -139,13 +140,13 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""Voici le modèle mental que nous allons construire, brique par brique :""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.mermaid(
         """
@@ -160,7 +161,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -174,7 +175,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -211,7 +212,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.callout(
         mo.md(
@@ -261,37 +262,41 @@ def _(df):
     return (masse_salariale,)
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _(df, mo):
+    # La solution est EXÉCUTÉE ici même : le code affiché est garanti fonctionnel.
+    _code = '''
+    def masse_salariale(etablissement: str) -> str:
+        sous_ensemble = df[df["Etablissement"] == etablissement]
+        if len(sous_ensemble) == 0:               # cas d'erreur d'abord
+            dispo = ", ".join(sorted(df["Etablissement"].unique()))
+            return f"Établissement inconnu. Disponibles : {dispo}"
+        total = int(sous_ensemble["Brut"].sum())  # calcul exact
+        return f"Masse salariale de {etablissement} : {total} €"
+'''
+    _code = __import__('textwrap').dedent(_code)
+    _ns = {"df": df}
+    exec(_code, _ns)
+    _sol = _ns["masse_salariale"]
     mo.accordion(
         {
             "🔓 Solution — Exercice 1 (déplier après avoir cherché)": mo.md(
-                r"""
-                La cellule ci-dessus contient **déjà une solution complète** — l'idée était
-                de la retrouver. La voici commentée :
-
-                ```python
-                def masse_salariale(etablissement: str) -> str:
-                    sous_ensemble = df[df["Etablissement"] == etablissement]
-                    if len(sous_ensemble) == 0:               # cas d'erreur d'abord
-                        dispo = ", ".join(sorted(df["Etablissement"].unique()))
-                        return f"Établissement inconnu. Disponibles : {dispo}"
-                    total = int(sous_ensemble["Brut"].sum())  # calcul exact
-                    return f"Masse salariale de {etablissement} : {total} €"
-                ```
-
-                **Pourquoi gérer l'erreur en premier ?** Parce que c'est ce garde-fou qui,
-                plus tard, empêchera l'agent d'inventer un chiffre pour un restaurant qu'il
-                ne connaît pas. Un outil qui « échoue proprement » vaut mieux qu'un outil qui
-                renvoie n'importe quoi.
-                """
+                "Le code complet — **exécuté en direct** dans cette cellule :\n\n"
+                + "```python\n" + _code.strip() + "\n```\n\n"
+                + "**Tests, calculés à l'instant :**\n\n"
+                + '- `masse_salariale("Le Chaudron")` → *' + _sol("Le Chaudron") + "*\n"
+                + '- `masse_salariale("Chez Paul")` → *' + _sol("Chez Paul") + "*\n\n"
+                + "**Pourquoi gérer l'erreur en premier ?** Parce que c'est ce garde-fou "
+                + "qui, plus tard, empêchera l'agent d'inventer un chiffre pour un "
+                + "restaurant qu'il ne connaît pas. Un outil qui « échoue proprement » "
+                + "vaut mieux qu'un outil qui renvoie n'importe quoi."
             )
         }
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(masse_salariale, mo):
     mo.md(
         f"""
@@ -308,7 +313,7 @@ def _(masse_salariale, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -354,7 +359,7 @@ def _():
     return (modele_simule,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, modele_simule):
     mo.md(
         f"""
@@ -373,7 +378,7 @@ def _(mo, modele_simule):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -404,7 +409,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.callout(
         mo.md(
@@ -454,49 +459,56 @@ def _(masse_salariale, modele_simule):
     return OUTILS, executer_agent, reponse, trace
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _(masse_salariale, mo, modele_simule):
+    # La solution est EXÉCUTÉE ici même : le code affiché est garanti fonctionnel.
+    _code = '''
+    OUTILS = {"masse_salariale": masse_salariale}
+
+    def executer_agent(question, max_tours=4):
+        trace = []
+        for tour in range(1, max_tours + 1):
+            decision = modele_simule(question)     # 1. décision du modèle
+            if "reponse" in decision:              # 2. il répond → FIN
+                return decision["reponse"], trace
+            nom  = decision["outil"]               # 3. il demande un outil
+            args = decision["arguments"]
+            resultat = OUTILS[nom](**args)         #    le programme l'exécute
+            trace.append({"tour": tour, "outil": nom,
+                          "arguments": args, "resultat": resultat})
+            return resultat, trace                 # (notre modèle conclut ici)
+        return "Trop de tours.", trace
+'''
+    _code = __import__('textwrap').dedent(_code)
+    _ns = {"masse_salariale": masse_salariale, "modele_simule": modele_simule}
+    exec(_code, _ns)
+    _reponse, _trace = _ns["executer_agent"]("Quelle est la masse salariale du Chaudron ?")
     mo.accordion(
         {
             "🔓 Solution — Exercice 2 (déplier après avoir cherché)": mo.md(
-                r"""
-                ```python
-                OUTILS = {"masse_salariale": masse_salariale}
-
-                def executer_agent(question, max_tours=4):
-                    trace = []
-                    for tour in range(1, max_tours + 1):
-                        decision = modele_simule(question)     # 1. décision du modèle
-                        if "reponse" in decision:              # 2. il répond → FIN
-                            return decision["reponse"], trace
-                        nom  = decision["outil"]               # 3. il demande un outil
-                        args = decision["arguments"]
-                        resultat = OUTILS[nom](**args)         #    le programme l'exécute
-                        trace.append({"tour": tour, "outil": nom,
-                                      "arguments": args, "resultat": resultat})
-                        return resultat, trace                 # (notre modèle conclut ici)
-                    return "Trop de tours.", trace
-                ```
-
-                **Les deux lignes qui font tout le travail :**
-
-                - `if "reponse" in decision:` → c'est la **condition de sortie**. C'est *toute*
-                  la logique « l'agent a-t-il fini ? ».
-                - `OUTILS[nom](**args)` → c'est **le programme qui exécute** ce que le modèle a
-                  seulement nommé. La séparation *décider / exécuter* est le cœur d'un agent.
-
-                > Dans un vrai agent, on ne fait pas `return` juste après l'outil : on renvoie
-                > le résultat **au modèle** et on reboucle, pour qu'il puisse enchaîner
-                > plusieurs outils (ex. chercher *puis* calculer). Notre modèle simulé conclut
-                > en un tour pour rester lisible.
-                """
+                "Le code complet — **exécuté en direct** dans cette cellule :\n\n"
+                + "```python\n" + _code.strip() + "\n```\n\n"
+                + "**Test, calculé à l'instant** — `executer_agent(\"Quelle est la masse "
+                + "salariale du Chaudron ?\")` renvoie :\n\n"
+                + "- réponse : *" + str(_reponse) + "*\n"
+                + "- trace : `" + str(_trace) + "`\n\n"
+                + "**Les deux lignes qui font tout le travail :**\n\n"
+                + '- `if "reponse" in decision:` → c\'est la **condition de sortie**. '
+                + "C'est *toute* la logique « l'agent a-t-il fini ? ».\n"
+                + "- `OUTILS[nom](**args)` → c'est **le programme qui exécute** ce que le "
+                + "modèle a seulement nommé. La séparation *décider / exécuter* est le cœur "
+                + "d'un agent.\n\n"
+                + "> Dans un vrai agent, on ne fait pas `return` juste après l'outil : on "
+                + "renvoie le résultat **au modèle** et on reboucle, pour qu'il puisse "
+                + "enchaîner plusieurs outils (ex. chercher *puis* calculer). Notre modèle "
+                + "simulé conclut en un tour pour rester lisible."
             )
         }
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, trace):
     mo.md(
         f"""
@@ -517,7 +529,7 @@ def _(mo, trace):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(executer_agent, mo):
     mo.md(
         f"""
@@ -538,7 +550,7 @@ def _(executer_agent, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -580,12 +592,157 @@ def _(mo):
 
         Une version complète, prête à exécuter avec une clé, est fournie dans
         `code/j4_agent.py` du dépôt.
+
+        ## Essayez avec un vrai modèle — maintenant
+
+        Ci-dessous, le **même agent**, mais dont la décision est prise par un vrai modèle
+        (Llama 3.3 70B servi par [Groq](https://console.groq.com), gratuit). Collez une clé
+        d'API — celle distribuée par votre formateur, ou la vôtre créée en 2 minutes sur
+        console.groq.com — posez une question, et comparez la trace avec celle du modèle
+        simulé.
+
+        > 🔒 La clé reste dans votre navigateur : elle n'est ni enregistrée ni publiée.
+        > En local (`marimo edit`), vous pouvez aussi laisser le champ vide et mettre
+        > `GROQ_API_KEY` dans un fichier `.env` (voir `.env_template` du dépôt).
         """
     )
     return
 
 
 @app.cell
+def _(mo):
+    cle_groq = mo.ui.text(kind="password", label="🔑 Clé Groq (gsk_…)", full_width=True)
+    question_reelle = mo.ui.text(
+        value="Quelle est la masse salariale du Chaudron ?",
+        label="❓ Votre question", full_width=True,
+    )
+    lancer = mo.ui.run_button(label="Interroger le vrai modèle")
+    mo.vstack([cle_groq, question_reelle, lancer])
+    return cle_groq, lancer, question_reelle
+
+
+@app.cell
+async def _(OUTILS, cle_groq, lancer, mo, question_reelle):
+    import json as _json
+    import sys as _sys
+
+    _DESCRIPTION_OUTILS = [{
+        "type": "function",
+        "function": {
+            "name": "masse_salariale",
+            "description": "Masse salariale brute mensuelle d'un établissement (restaurant).",
+            "parameters": {"type": "object",
+                           "properties": {"etablissement": {"type": "string"}},
+                           "required": ["etablissement"]},
+        },
+    }]
+
+    async def _appel_groq(messages: list, cle: str) -> dict:
+        """Un appel au modèle (API compatible OpenAI). Marche dans le navigateur ET en local."""
+        _payload = {"model": "llama-3.3-70b-versatile", "messages": messages,
+                    "tools": _DESCRIPTION_OUTILS}
+        _url = "https://api.groq.com/openai/v1/chat/completions"
+        _entetes = {"Authorization": f"Bearer {cle}", "Content-Type": "application/json"}
+        if _sys.platform == "emscripten":  # navigateur (WASM)
+            from pyodide.http import pyfetch
+            _rep = await pyfetch(_url, method="POST", headers=_entetes,
+                                 body=_json.dumps(_payload))
+            return await _rep.json()
+        import urllib.request  # exécution locale (marimo edit)
+        _entetes["User-Agent"] = "marimo-notebook/1.0"  # l'UA python-urllib est bloqué
+        _req = urllib.request.Request(_url, data=_json.dumps(_payload).encode(),
+                                      headers=_entetes)
+        try:
+            with urllib.request.urlopen(_req) as _f:
+                return _json.loads(_f.read())
+        except urllib.error.HTTPError as _e:  # renvoyer l'erreur API, lisible
+            _corps = _e.read().decode("utf-8", "replace")
+            try:
+                return _json.loads(_corps)
+            except Exception:
+                return {"error": {"message": f"HTTP {_e.code} : {_corps[:200]}"}}
+
+    async def _agent_reel(question: str, cle: str, max_tours: int = 4):
+        """LA MÊME boucle qu'avec le modèle simulé — seule la « décision » change."""
+        _messages = [
+            {"role": "system", "content": "Tu es un assistant d'audit paie. Réponds en "
+             "français. N'invente JAMAIS un chiffre : utilise les outils. Si tu n'as pas "
+             "d'outil pour répondre, dis-le."},
+            {"role": "user", "content": question},
+        ]
+        _trace = []
+        for _tour in range(1, max_tours + 1):
+            _data = await _appel_groq(_messages, cle)          # 1. décision du modèle
+            if "error" in _data:
+                return f"Erreur API : {_data['error'].get('message', _data['error'])}", _trace
+            _msg = _data["choices"][0]["message"]
+            if not _msg.get("tool_calls"):                     # 2. réponse directe ? → FIN
+                return _msg["content"], _trace
+            # On ré-envoie une version ASSAINIE du message (l'API refuse parfois
+            # ses propres champs additionnels renvoyés tels quels).
+            _messages.append({"role": "assistant", "content": _msg.get("content"),
+                              "tool_calls": _msg["tool_calls"]})
+            for _tc in _msg["tool_calls"]:                     # 3. sinon, exécuter l'outil
+                _nom = _tc["function"]["name"]
+                _args = _json.loads(_tc["function"]["arguments"])
+                _resultat = OUTILS[_nom](**_args)              #    (le programme exécute)
+                _trace.append({"tour": _tour, "outil": _nom,
+                               "arguments": _args, "resultat": _resultat})
+                _messages.append({"role": "tool", "tool_call_id": _tc["id"],
+                                  "content": _resultat})       # 4. résultat → modèle, on reboucle
+        return "Trop de tours — on s'arrête.", _trace
+
+    def _cle_locale() -> str:
+        """En local seulement : lit GROQ_API_KEY / LLM_API_KEY (environnement ou .env)."""
+        if _sys.platform == "emscripten":  # navigateur : uniquement le champ ci-dessus
+            return ""
+        import os as _os
+        import pathlib as _pathlib
+        _cle = _os.environ.get("GROQ_API_KEY") or _os.environ.get("LLM_API_KEY")
+        if _cle:
+            return _cle
+        for _dossier in (_pathlib.Path.cwd(), *_pathlib.Path.cwd().parents):
+            _fichier = _dossier / ".env"
+            if _fichier.exists():
+                for _ligne in _fichier.read_text(encoding="utf-8").splitlines():
+                    _nom, _, _val = _ligne.partition("=")
+                    if _nom.strip() in ("GROQ_API_KEY", "LLM_API_KEY") and _val.strip():
+                        return _val.strip().strip('"').strip("'")
+        return ""
+
+    _cle_active = cle_groq.value.strip() or _cle_locale()
+    mo.stop(
+        not lancer.value,
+        mo.callout(mo.md("Collez une clé (ou, en local, renseignez `GROQ_API_KEY` dans "
+                         "un `.env` — voir `.env_template`), puis cliquez "
+                         "**Interroger le vrai modèle**."),
+                   kind="neutral"),
+    )
+    mo.stop(
+        not _cle_active,
+        mo.callout(mo.md("⚠️ Il manque la clé Groq : collez-la dans le champ `gsk_…` "
+                         "ci-dessus (ou, en local, dans un `.env` — voir "
+                         "`.env_template`)."),
+                   kind="warn"),
+    )
+    try:
+        _reponse_ia, _trace_ia = await _agent_reel(question_reelle.value, _cle_active)
+    except Exception as _e:
+        _reponse_ia, _trace_ia = f"Échec de l'appel ({type(_e).__name__}) : {_e}", []
+    _citation = "> " + str(_reponse_ia).replace("\n", "\n> ")
+    mo.md(
+        "**Réponse du vrai modèle :**\n\n"
+        + _citation + "\n\n"
+        + "**Trace (piste d'audit) :** `" + str(_trace_ia) + "`\n\n"
+        + "Comparez avec le modèle simulé : même boucle, même trace — seule la "
+        + "« décision » est devenue intelligente (et capable d'enchaîner plusieurs "
+        + "outils !). Essayez : *« Compare la masse salariale du Chaudron et de la "
+        + "Maison Favreau »*."
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
