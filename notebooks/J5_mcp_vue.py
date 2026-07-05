@@ -2,7 +2,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["marimo", "pandas>=2.0"]
 # ///
-"""J5 · MCP & vue contrôlée — notebook-cours marimo."""
+"""J5 · Donner des données à un agent, sans tout lui donner — notebook autoportant."""
 import marimo
 
 __generated_with = "0.9.27"
@@ -17,27 +17,54 @@ def _():
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+        # J5 · Donner des données à un agent — sans tout lui donner
+
+        ### Ce que vous saurez faire à la fin
+        - Expliquer **pourquoi** on ne colle pas un gros fichier dans un prompt.
+        - Écrire des **vues** : des fonctions qui renvoient des données *agrégées*,
+          jamais le fichier brut ni un nom de salarié.
+        - **Mesurer** le coût (en « tokens ») du brut face à une vue — et voir l'écart.
+        - Faire le lien avec le **MCP** : un standard pour brancher un agent à ces vues.
+
+        ### Mode d'emploi
+        Cours à lire de haut en bas. **🎯 Exercice** = à vous de jouer ; **🔓 Solution** =
+        à déplier après avoir cherché. **Autoportant** : données incluses, aucune clé d'IA.
+        """
+    )
+    return
+
+
+@app.cell
+def _():
     import pandas as pd
-    from pathlib import Path
+    from io import StringIO
 
-    _CSV = "liora_paie.csv"
-
-    def _load_liora():
-        # 1) Local (uv run / marimo edit) : systeme de fichiers
-        for c in (Path("public/data") / _CSV, Path("../public/data") / _CSV,
-                  Path("data") / _CSV, Path("../data") / _CSV):
-            if c.exists():
-                return pd.read_csv(c)
-        # 2) WASM (GitHub Pages) : via l'URL du notebook
-        base = str(mo.notebook_location()).rstrip("/")
-        for url in (f"{base}/public/data/{_CSV}", f"{base}/../public/data/{_CSV}"):
-            try:
-                return pd.read_csv(url)
-            except Exception:
-                pass
-        raise FileNotFoundError("liora_paie.csv introuvable (local et WASM).")
-
-    df = _load_liora()
+    _CSV = """Etablissement,Matricule,Sexe,Brut
+Le Chaudron,C001,M,2450
+Le Chaudron,C002,F,2100
+Le Chaudron,C003,M,3200
+Le Chaudron,C004,F,1950
+Le Chaudron,C005,M,2780
+Le Chaudron,C006,F,2300
+Brasserie Dorée,B001,M,4200
+Brasserie Dorée,B002,F,3800
+Brasserie Dorée,B003,M,5100
+Brasserie Dorée,B004,F,2600
+Brasserie Dorée,B005,M,3400
+Maison Favreau,F001,F,2200
+Maison Favreau,F002,M,2600
+Maison Favreau,F003,F,1900
+Maison Favreau,F004,M,3100
+Au Fil des Saisons,S001,F,2050
+Au Fil des Saisons,S002,M,2400
+Au Fil des Saisons,S003,F,2750
+Au Fil des Saisons,S004,M,2900
+Au Fil des Saisons,S005,F,1850
+Au Fil des Saisons,S006,M,3300
+"""
+    df = pd.read_csv(StringIO(_CSV))
     return df, pd
 
 
@@ -45,47 +72,29 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        # J5 · MCP — la *vue contrôlée* sous le capot
+        ---
+        # 1. Le problème : le prompt n'est pas une base de données
 
-        > 5 temps par notion → **① présentation · ② syntaxe · ③ exercice ·
-        > ④ solution (repliée) · ⑤ commentaire**.
+        Un réflexe naturel : « pour que l'IA réponde sur mes données de paie, je vais lui
+        **coller tout le fichier** dans la question ». Sur un vrai fichier (dizaines de
+        milliers de lignes), cette idée échoue de **trois façons à la fois** :
 
-        **Prolonge** J5 : S04 (document/outil/vue), S15-S18 (50 000 lignes ?),
-        S24-S26 (node Custom MCP), S28 (stratégies d'échelle).
-        """
-    )
-    return
+        1. **La fenêtre sature.** Un modèle a une taille maximale d'entrée. Un gros fichier
+           n'y tient tout simplement pas.
+        2. **Chaque mot se paie.** On facture au *token* (≈ un morceau de mot). Envoyer tout
+           le fichier à *chaque* question coûte cher, très vite.
+        3. **La qualité chute.** Noyé sous les lignes, le modèle confond, « moyenne », et se
+           met à inventer.
 
-
-@app.cell
-def _(mo):
-    mo.md(r"""---""")
-    return
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NOTION 1 — Exposer une VUE, pas le fichier brut
-# ═══════════════════════════════════════════════════════════════════════════
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-        ## ① Notion 1 — On expose une *vue*, jamais le brut
-
-        Un serveur MCP publie des **outils** qui renvoient des vues *gouvernées*
-        (agrégées, filtrées, pseudonymisées) — jamais le fichier de paie entier.
+        La bonne réponse n'est **pas** « un plus gros modèle ». C'est : **n'envoyer que ce
+        qu'il faut** — une *vue* de la donnée, pas la donnée entière.
 
         ```
-           FICHIER BRUT (7 200 lignes nominatives)         ✗ ne sort jamais
-                 │
-                 ▼
-           ┌───────────────── Serveur MCP ─────────────────┐
-           │  get_audit_scope()   → périmètre (compteurs)  │  ✓ ce qui sort
-           │  aggregate_...()     → totaux par établ.      │
-           │  dossiers_exception()→ sous-ensemble ciblé    │
-           └───────────────────────────────────────────────┘
-                 │
-                 ▼   AGENT (ne voit que la vue)
+          MAUVAIS                                 BON
+          ┌──────────────┐                        ┌──────────────┐
+          │ tout le      │  ──► modèle (sature)   │ une VUE      │ ──► modèle (léger)
+          │ fichier brut │                        │ agrégée      │
+          └──────────────┘                        └──────────────┘
         ```
         """
     )
@@ -96,36 +105,33 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## ② Syntaxe — un outil de vue = une agrégation pandas
+        ---
+        # 2. La solution : exposer des *vues*, pas le brut
+
+        Une « vue » est une fonction qui renvoie un **résumé gouverné** de la donnée :
+        un total, une moyenne, un décompte — jamais la liste nominative. C'est exactement
+        ce qu'un serveur **MCP** publierait comme « outils » à destination d'un agent.
+
+        Deux principes d'auditeur :
+
+        - **Agréger** : on renvoie « la masse salariale par établissement », pas les
+          bulletins un par un.
+        - **Minimiser** : au pire on expose un `Matricule` (pseudonyme), **jamais** un nom.
+
+        ## La syntaxe, expliquée
+
+        `groupby` regroupe les lignes ; `.agg(...)` calcule un résumé par groupe :
 
         ```python
-        def aggregate_masse_salariale():
-            g = (df.groupby("Etablissement")
-                   .agg(nb=("Brut", "size"), masse=("Brut", "sum"))
-                   .round(2).reset_index())
-            return g.to_json(orient="records", force_ascii=False)
+        def vue_par_etablissement() -> str:
+            resume = (df.groupby("Etablissement")["Brut"]
+                        .agg(nb="size", masse="sum")   # nb de bulletins + total
+                        .reset_index())
+            return resume.to_string(index=False)       # un petit tableau lisible
         ```
-
-        Le principe **minimisation** : on renvoie des agrégats, ou au pire un
-        **matricule** (pseudonyme), jamais le **nom** (slide S29 / RGPD).
         """
     )
     return
-
-
-@app.cell
-def _(df):
-    import json as _json
-
-    def get_audit_scope() -> str:
-        return _json.dumps({
-            "nb_etablissements": int(df["Etablissement"].nunique()),
-            "nb_bulletins": int(len(df)),
-            "masse_totale": round(float(df["Brut"].sum()), 2),
-        }, ensure_ascii=False)
-
-    get_audit_scope()
-    return (get_audit_scope,)
 
 
 @app.cell
@@ -133,11 +139,23 @@ def _(mo):
     mo.callout(
         mo.md(
             r"""
-            ## ③ Exercice — un outil de vue avec refus propre
+            ## 🎯 Exercice 1 — une vue *par sexe*, avec refus propre
 
-            Écrivez `masse_par_sexe(etablissement)` : la masse brute ventilée H/F pour
-            **un** établissement. Contrainte d'audit : si l'établissement n'existe pas,
-            l'outil doit **refuser proprement** (message d'erreur), pas planter.
+            **Ce qu'on cherche à faire :** écrire `masse_par_sexe(etablissement)` qui renvoie
+            la masse salariale ventilée **H / F** pour **un** établissement — et qui **refuse
+            proprement** si l'établissement n'existe pas (un outil qui plante casse l'agent).
+
+            ```
+            entrée : "Le Chaudron"
+                       │
+                       ▼
+              établissement connu ?
+                ├─ non ─► "établissement inconnu"        (refus propre)
+                └─ oui ─► groupby(Sexe).Brut.sum()
+                          └─► {"M": 8430, "F": 6350}
+            ```
+
+            Complétez la cellule ci-dessous. Testez avec `"Le Chaudron"` puis `"Chez Paul"`.
             """
         ),
         kind="info",
@@ -146,56 +164,55 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    mo.accordion(
-        {
-            "🔓 ④ Afficher la solution": mo.md(
-                r"""
-                ```python
-                def masse_par_sexe(etablissement: str) -> str:
-                    sub = df[df["Etablissement"].str.lower() == etablissement.strip().lower()]
-                    if sub.empty:
-                        return "ERREUR: établissement inconnu (refus propre)"
-                    v = sub.groupby("Sexe")["Brut"].sum().round(2).to_dict()
-                    return json.dumps({"etablissement": etablissement,
-                                       "masse_par_sexe": v}, ensure_ascii=False)
-                ```
-
-                Le **refus** n'est pas un détail : un outil MCP qui plante casse tout le
-                flow. « Accepter les demandes gouvernées, refuser le reste » (S29).
-                """
-            )
-        }
-    )
-    return
-
-
-@app.cell
 def _(df):
-    import json as _json2
+    # ✏️  À TOI DE JOUER — une version qui marche est fournie ; réécris-la pour t'entraîner.
+    def masse_par_sexe(etablissement: str):
+        sous_ensemble = df[df["Etablissement"] == etablissement]
+        if len(sous_ensemble) == 0:
+            return "Établissement inconnu (refus propre) — vérifiez le nom."
+        ventilation = sous_ensemble.groupby("Sexe")["Brut"].sum().to_dict()
+        return {"etablissement": etablissement, "masse_par_sexe": ventilation}
 
-    def masse_par_sexe(etablissement: str) -> str:
-        sub = df[df["Etablissement"].str.lower() == etablissement.strip().lower()]
-        if sub.empty:
-            return "ERREUR: établissement inconnu (refus propre)"
-        v = sub.groupby("Sexe")["Brut"].sum().round(2).to_dict()
-        return _json2.dumps({"etablissement": etablissement, "masse_par_sexe": v},
-                            ensure_ascii=False)
-
-    {"ok": masse_par_sexe("Le Chaudron"), "refus": masse_par_sexe("Chez Bernard")}
+    masse_par_sexe("Le Chaudron")
     return (masse_par_sexe,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        ## ⑤ Commentaire
+    mo.accordion(
+        {
+            "🔓 Solution — Exercice 1": mo.md(
+                r"""
+                ```python
+                def masse_par_sexe(etablissement: str):
+                    sous_ensemble = df[df["Etablissement"] == etablissement]
+                    if len(sous_ensemble) == 0:                       # refus D'ABORD
+                        return "Établissement inconnu (refus propre)."
+                    ventilation = sous_ensemble.groupby("Sexe")["Brut"].sum().to_dict()
+                    return {"etablissement": etablissement, "masse_par_sexe": ventilation}
+                ```
 
-        Vos trois fonctions sont déjà « MCP-ready » : un serveur MCP n'est qu'un
-        décorateur autour d'elles (`FastMCP(...).tool()(...)`). Le node « Custom MCP »
-        de Flowise parle le même protocole. Vous n'avez pas quitté la formation — vous
-        en avez ouvert le capot.
+                **Pourquoi le refus est essentiel :** un serveur MCP « accepte les demandes
+                gouvernées et refuse le reste ». Une vue qui répond `None` ou qui plante sur
+                un mauvais paramètre casse tout le flow de l'agent. Refuser *proprement*, avec
+                un message clair, fait partie du contrat de l'outil.
+                """
+            )
+        }
+    )
+    return
+
+
+@app.cell
+def _(masse_par_sexe, mo):
+    mo.md(
+        f"""
+        **Vérifions les deux cas :**
+
+        - connu → `{masse_par_sexe("Le Chaudron")}`
+        - inconnu → *{masse_par_sexe("Chez Paul")}*
+
+        Aucune ligne nominative ne sort : juste deux totaux. C'est une **vue**.
         """
     )
     return
@@ -203,29 +220,23 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""---""")
-    return
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NOTION 2 — Pourquoi 50 000 lignes échouent (tokens & coût)
-# ═══════════════════════════════════════════════════════════════════════════
-@app.cell
-def _(mo):
     mo.md(
         r"""
-        ## ① Notion 2 — « Et si je collais tout le fichier dans le prompt ? »
+        ---
+        # 3. Mesurer le coût : brut contre vue
 
-        Trois échecs *simultanés* (slide S15) : la **fenêtre sature**, chaque **token se
-        paie**, et la **qualité chute** (dilution). La bonne réponse n'est pas « un plus
-        gros modèle » mais « une **vue** ». On va le *mesurer*.
+        Parlons **tokens**. Un token ≈ un petit morceau de mot ; un modèle « lit » et
+        « facture » en tokens. Règle de poche : **~4 caractères = 1 token**. (Les vrais
+        outils comme `tiktoken` comptent exactement, mais l'approximation suffit pour saisir
+        l'ordre de grandeur — et elle marche partout, y compris dans le navigateur.)
 
-        ## ② Syntaxe — compter les tokens
+        Comparons le coût d'envoyer **tout le fichier** contre celui d'envoyer **une vue**.
+        Comme notre extrait est petit, on le **répète** pour simuler un vrai fichier
+        volumineux — l'écart de proportion, lui, est bien réel.
 
         ```python
-        import tiktoken
-        enc = tiktoken.get_encoding("cl100k_base")
-        n = len(enc.encode(texte))     # nb de tokens réels
+        def compter_tokens(texte: str) -> int:
+            return len(texte) // 4        # approximation ~4 caractères / token
         ```
         """
     )
@@ -237,11 +248,14 @@ def _(mo):
     mo.callout(
         mo.md(
             r"""
-            ## ③ Exercice — brut vs vue, en tokens
+            ## 🎯 Exercice 2 — chiffrer l'écart
 
-            Comparez le nombre de **tokens** de : (a) tout `df` en CSV, (b) la même chose
-            répétée ×7 (≈ un « gros lot » DSN de la slide), (c) la sortie de
-            `aggregate_masse_salariale()`. Concluez sur le coût.
+            **Ce qu'on cherche à faire :** comparer le nombre de tokens de
+            **(a)** tout le brut, **(b)** le brut répété ×200 (≈ un gros fichier),
+            **(c)** la vue agrégée par établissement. Puis conclure sur le coût.
+
+            La cellule ci-dessous le fait déjà — lisez-la, exécutez-la, et regardez le
+            rapport entre (b) et (c).
             """
         ),
         kind="info",
@@ -250,79 +264,73 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    mo.accordion(
-        {
-            "🔓 ④ Afficher la solution": mo.md(
-                r"""
-                ```python
-                def n_tokens(t):
-                    try:
-                        import tiktoken
-                        return len(tiktoken.get_encoding("cl100k_base").encode(t))
-                    except Exception:
-                        return len(t) // 4          # approximation
+def _(df, pd):
+    # ✏️  Zone d'expérimentation : change le facteur de répétition et observe.
+    def compter_tokens(texte: str) -> int:
+        return len(texte) // 4  # ~4 caractères / token
 
-                brut = df.to_csv(sep="|", index=False)
-                gros = "\\n".join([brut] * 7)
-                vue  = aggregate_masse_salariale()
-                for nom, c in [("brut", brut), ("gros ×7", gros), ("vue", vue)]:
-                    print(nom, n_tokens(c))
-                ```
-                """
-            )
-        }
+    brut = df.to_csv(index=False)
+    gros_fichier = brut * 200  # on simule un fichier volumineux
+    vue = (df.groupby("Etablissement")["Brut"]
+             .agg(nb="size", masse="sum").reset_index().to_csv(index=False))
+
+    comparaison = pd.DataFrame([
+        {"contenu": "brut (notre extrait)", "caractères": len(brut), "tokens≈": compter_tokens(brut)},
+        {"contenu": "gros fichier (×200)", "caractères": len(gros_fichier), "tokens≈": compter_tokens(gros_fichier)},
+        {"contenu": "vue agrégée", "caractères": len(vue), "tokens≈": compter_tokens(vue)},
+    ])
+    comparaison
+    return comparaison, compter_tokens
+
+
+@app.cell
+def _(comparaison, mo):
+    _gros = int(comparaison.loc[comparaison["contenu"] == "gros fichier (×200)", "tokens≈"].iloc[0])
+    _vue = int(comparaison.loc[comparaison["contenu"] == "vue agrégée", "tokens≈"].iloc[0])
+    mo.md(
+        f"""
+        ## Ce que révèlent les chiffres
+
+        Le « gros fichier » pèse ≈ **{_gros:,} tokens** — au-delà de ce que beaucoup de
+        modèles acceptent en entrée : **il ne rentre même pas**. La vue agrégée, elle, tient
+        en ≈ **{_vue} tokens**, soit **~{_gros // max(_vue,1):,}× moins**, tout en répondant à
+        la même question d'audit (« quelle masse par établissement ? »).
+
+        > La leçon d'ingénierie : **le filtrage et l'agrégation se font côté *outil* (dans la
+        > requête), jamais dans le prompt.** Un prompt n'est pas un moteur de requête.
+        """
     )
     return
 
 
 @app.cell
-def _(df, get_audit_scope, pd):
-    # Démonstration exécutée
-    def _n_tokens(t):
-        try:
-            import tiktoken
-            return len(tiktoken.get_encoding("cl100k_base").encode(t))
-        except Exception:
-            return len(t) // 4
-
-    def _agg():
-        g = (df.groupby("Etablissement")
-               .agg(nb=("Brut", "size"), masse=("Brut", "sum")).round(2).reset_index())
-        return g.to_json(orient="records", force_ascii=False)
-
-    brut = df.to_csv(sep="|", index=False)
-    gros = "\n".join([brut] * 7)
-    vue = _agg()
-    tableau_tokens = pd.DataFrame([
-        {"contenu": "brut (~7 200 lignes)", "tokens": _n_tokens(brut)},
-        {"contenu": "gros lot ×7 (~50 000)", "tokens": _n_tokens(gros)},
-        {"contenu": "vue agrégée (16 lignes)", "tokens": _n_tokens(vue)},
-    ])
-    tableau_tokens
-    return (tableau_tokens,)
-
-
-@app.cell
-def _(mo, tableau_tokens):
-    _t = tableau_tokens.set_index("contenu")["tokens"].to_dict()
+def _(mo):
     mo.md(
-        f"""
-        ## ⑤ Commentaire
+        r"""
+        ---
+        # 4. Le lien avec le MCP (et Flowise)
 
-        Le « gros lot » pèse **{_t['gros lot ×7 (~50 000)']:,} tokens** — au-delà de la
-        fenêtre de la plupart des modèles : **ça ne rentre même pas**. La vue agrégée
-        (**{_t['vue agrégée (16 lignes)']} tokens**) répond à la même question d'audit
-        pour une fraction du coût, **sans exposer une seule ligne nominative**.
+        Ce que vous venez d'écrire — des fonctions qui renvoient des **vues** — c'est
+        *exactement* ce qu'un **serveur MCP** expose à un agent. Le MCP (Model Context
+        Protocol) est simplement un **standard** : « voici mes outils, voici comment les
+        appeler ». Un serveur minimal, c'est un décorateur autour de vos fonctions :
 
-        C'est la démonstration chiffrée de la slide S28 : *pré-agréger, filtrer côté
-        outil*. Le filtre va dans la **requête**, jamais dans le prompt.
+        ```python
+        from mcp.server.fastmcp import FastMCP
+        serveur = FastMCP("liora-paie")
+        serveur.tool()(masse_par_sexe)     # votre vue devient un outil MCP
+        # serveur.run()                    # ...que Flowise (node « Custom MCP ») consomme
+        ```
+
+        Le node « Custom MCP » de Flowise et ce serveur parlent le **même** protocole.
+        Vous n'avez pas quitté la formation — vous en avez ouvert le capot.
 
         ---
-        ### ✅ Récap J5
-        - Un outil MCP renvoie une **vue** (agrégée / pseudonymisée), pas le brut.
-        - Un outil **refuse proprement** un périmètre invalide.
-        - Le volume a un **coût mesurable** : agrégez en amont.
+        ## ✅ À emporter
+        - On **n'envoie jamais** un gros fichier au modèle : on expose une **vue** agrégée.
+        - Une bonne vue **minimise** (pas de noms) et **refuse proprement** l'invalide.
+        - Le volume a un **coût mesurable** en tokens : agrégez **en amont**.
+        - Le MCP standardise le branchement de ces vues à un agent.
         """
     )
     return

@@ -2,7 +2,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["marimo", "pandas>=2.0"]
 # ///
-"""J6 · Multi-agents & HITL — notebook-cours marimo."""
+"""J6 · Faire collaborer plusieurs agents (+ validation humaine) — notebook autoportant."""
 import marimo
 
 __generated_with = "0.9.27"
@@ -17,27 +17,53 @@ def _():
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+        # J6 · Faire collaborer plusieurs agents — et garder l'humain dans la boucle
+
+        ### Ce que vous saurez faire à la fin
+        - Expliquer **pourquoi** un seul agent qui fait tout finit par bâcler.
+        - Répartir le travail entre des **workers** spécialisés.
+        - Écrire un **superviseur** : une petite *machine à états* qui distribue les tâches.
+        - Placer une **validation humaine** (HITL) au bon endroit de la chaîne.
+
+        ### Mode d'emploi
+        Cours à lire de haut en bas. **🎯 Exercice** = à vous ; **🔓 Solution** = à déplier
+        après. **Autoportant** : données incluses, aucune clé d'IA.
+        """
+    )
+    return
+
+
+@app.cell
+def _():
     import pandas as pd
-    from pathlib import Path
+    from io import StringIO
 
-    _CSV = "liora_paie.csv"
-
-    def _load_liora():
-        # 1) Local (uv run / marimo edit) : systeme de fichiers
-        for c in (Path("public/data") / _CSV, Path("../public/data") / _CSV,
-                  Path("data") / _CSV, Path("../data") / _CSV):
-            if c.exists():
-                return pd.read_csv(c)
-        # 2) WASM (GitHub Pages) : via l'URL du notebook
-        base = str(mo.notebook_location()).rstrip("/")
-        for url in (f"{base}/public/data/{_CSV}", f"{base}/../public/data/{_CSV}"):
-            try:
-                return pd.read_csv(url)
-            except Exception:
-                pass
-        raise FileNotFoundError("liora_paie.csv introuvable (local et WASM).")
-
-    df = _load_liora()
+    _CSV = """Etablissement,Matricule,Sexe,Brut
+Le Chaudron,C001,M,2450
+Le Chaudron,C002,F,2100
+Le Chaudron,C003,M,3200
+Le Chaudron,C004,F,1950
+Le Chaudron,C005,M,2780
+Le Chaudron,C006,F,2300
+Brasserie Dorée,B001,M,4200
+Brasserie Dorée,B002,F,3800
+Brasserie Dorée,B003,M,5100
+Brasserie Dorée,B004,F,2600
+Brasserie Dorée,B005,M,3400
+Maison Favreau,F001,F,2200
+Maison Favreau,F002,M,2600
+Maison Favreau,F003,F,1900
+Maison Favreau,F004,M,3100
+Au Fil des Saisons,S001,F,2050
+Au Fil des Saisons,S002,M,2400
+Au Fil des Saisons,S003,F,2750
+Au Fil des Saisons,S004,M,2900
+Au Fil des Saisons,S005,F,1850
+Au Fil des Saisons,S006,M,3300
+"""
+    df = pd.read_csv(StringIO(_CSV))
     return (df,)
 
 
@@ -45,76 +71,47 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        # J6 · Multi-agents — le superviseur comme *machine à états*
+        ---
+        # 1. Pourquoi *plusieurs* agents ?
 
-        > 5 temps par notion → **① présentation · ② syntaxe · ③ exercice ·
-        > ④ solution (repliée) · ⑤ commentaire**.
+        Imaginez un auditeur seul chargé, en même temps, de : **chercher** la règle,
+        **calculer** un écart, **contrôler** le résultat, puis **rédiger** le rapport.
+        Chaque tâche tire son attention dans une direction différente — il finit par bâcler.
 
-        **Prolonge** J6 : S06/S10 (le superviseur répartit, il ne fait pas),
-        S13 (« même boucle, l'outil = un agent »), S14-S16 (Human Input), S24 (traçabilité).
-        """
-    )
-    return
+        Un agent unique a le même défaut : plus on lui empile de rôles dans un seul prompt,
+        moins il est fiable. La parade : **spécialiser**. On confie chaque rôle à un
+        *worker* étroit, et un *superviseur* orchestre le tout.
 
-
-@app.cell
-def _(mo):
-    mo.md(r"""---""")
-    return
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NOTION 1 — Superviseur + workers = une machine à états
-# ═══════════════════════════════════════════════════════════════════════════
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-        ## ① Notion 1 — Le superviseur *répartit*, il ne *fait* pas
-
-        Un seul agent qui cherche **et** calcule **et** rédige finit par bâcler. On
-        spécialise : un **superviseur** découpe et distribue à des **workers**. À chaque
-        tour, il tranche pour *exactement un* état suivant : `DOC → CALC → REPORT → FIN`.
-        C'est une **machine à états**.
-        """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.mermaid(
-        """
-        stateDiagram-v2
-            [*] --> DOC
-            DOC --> CALC : alerte détectée
-            CALC --> REPORT : écart quantifié
-            REPORT --> FIN : rapport rédigé
-            FIN --> [*]
-            note right of DOC : Agent Détection
-            note right of CALC : Agent Contrôle
-            note right of REPORT : Agent Synthèse
-        """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-        ## ② Syntaxe — le superviseur est une fonction *pure*
-
-        ```python
-        def superviseur(etat: dict) -> str:
-            if "alerte" not in etat:       return "DOC"     # rien détecté
-            if etat.get("besoin_calcul"):  return "CALC"    # pas encore quantifié
-            if "rapport" not in etat:      return "REPORT"  # pas encore rédigé
-            return "FIN"
+        ```
+                         ┌─────────────┐
+             demande ──► │ SUPERVISEUR │  (il répartit, il ne fait pas le travail)
+                         └──────┬──────┘
+               ┌────────────────┼─────────────────┐
+               ▼                ▼                  ▼
+         ┌──────────┐    ┌──────────┐      ┌──────────┐
+         │ Détection│    │ Contrôle │      │ Synthèse │   (workers spécialisés)
+         └──────────┘    └──────────┘      └──────────┘
         ```
 
-        Il ne *fait* rien : il **lit l'état** et renvoie le prochain nœud. Déterministe,
-        donc **testable** (contrairement à un superviseur LLM).
+        Notre scénario d'audit : **détecter** un établissement au salaire moyen anormal,
+        **quantifier** l'écart, puis **rédiger** une alerte.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ---
+        # 2. Les workers : trois spécialistes
+
+        Chaque worker reçoit un « état » (un dictionnaire partagé), fait **sa** part, et
+        enrichit l'état. Aucun ne déborde sur le rôle d'un autre — c'est ce qui rend la
+        chaîne lisible et traçable.
+
+        Lisez et exécutez la cellule : elle définit les trois workers.
         """
     )
     return
@@ -122,32 +119,67 @@ def _(mo):
 
 @app.cell
 def _(df):
-    # Les 3 workers (déterministes, sans LLM)
-    def worker_detection(etat):
-        g = df.groupby("Etablissement")["Brut"].mean()
-        med = g.median()
-        cible = (g / med).idxmax()
-        etat["alerte"] = {"etablissement": cible, "brut_moyen": round(float(g[cible]), 2),
-                          "median_secteur": round(float(med), 2), "ratio": round(float(g[cible] / med), 2)}
-        etat["besoin_calcul"] = True
+    # Worker 1 — DÉTECTION : trouve l'établissement au brut moyen le plus atypique.
+    def worker_detection(etat: dict) -> dict:
+        moyennes = df.groupby("Etablissement")["Brut"].mean()
+        mediane_secteur = moyennes.median()
+        cible = (moyennes / mediane_secteur).idxmax()
+        etat["alerte"] = {
+            "etablissement": cible,
+            "brut_moyen": round(float(moyennes[cible])),
+            "mediane_secteur": round(float(mediane_secteur)),
+            "ratio": round(float(moyennes[cible] / mediane_secteur), 2),
+        }
         return etat
 
-    def worker_controle(etat):
-        sub = df[df["Etablissement"] == etat["alerte"]["etablissement"]]
-        etat["controle"] = {"nb_bulletins": int(len(sub)),
-                            "part_gt_10k": round(float((sub["Brut"] > 10000).mean()), 3)}
-        etat["besoin_calcul"] = False
+    # Worker 2 — CONTRÔLE : quantifie l'ampleur (nb de bulletins, part au-dessus d'un seuil).
+    def worker_controle(etat: dict) -> dict:
+        cible = etat["alerte"]["etablissement"]
+        sous = df[df["Etablissement"] == cible]
+        etat["controle"] = {
+            "nb_bulletins": int(len(sous)),
+            "brut_max": int(sous["Brut"].max()),
+            "part_sup_3500": round(float((sous["Brut"] > 3500).mean()), 2),
+        }
         return etat
 
-    def worker_synthese(etat):
+    # Worker 3 — SYNTHÈSE : rédige l'alerte à partir de l'état.
+    def worker_synthese(etat: dict) -> dict:
         a, c = etat["alerte"], etat["controle"]
-        etat["rapport"] = (f"ALERTE — {a['etablissement']} : brut moyen {a['brut_moyen']} € "
-                           f"vs médiane {a['median_secteur']} € (ratio {a['ratio']}×) ; "
-                           f"{c['nb_bulletins']} bulletins, {int(c['part_gt_10k']*100)}% > 10 000 €.")
+        etat["rapport"] = (
+            f"ALERTE — {a['etablissement']} : brut moyen {a['brut_moyen']} € "
+            f"contre {a['mediane_secteur']} € pour le secteur (ratio {a['ratio']}×). "
+            f"{c['nb_bulletins']} bulletins, max {c['brut_max']} €. À vérifier."
+        )
         return etat
 
-    WORKERS = {"DOC": worker_detection, "CALC": worker_controle, "REPORT": worker_synthese}
+    WORKERS = {"DETECTION": worker_detection, "CONTROLE": worker_controle, "SYNTHESE": worker_synthese}
     return (WORKERS,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ---
+        # 3. Le superviseur : une machine à états
+
+        Le superviseur **ne fait pas** le travail. À chaque tour, il **regarde l'état** et
+        décide **la prochaine étape** : `DETECTION`, `CONTROLE`, `SYNTHESE`, ou `FIN`. Une
+        seule décision par tour. C'est une **machine à états**.
+
+        ```
+          état vide            ──► DETECTION
+          alerte mais pas de contrôle ──► CONTROLE
+          contrôle mais pas de rapport ──► SYNTHESE
+          rapport présent      ──► FIN
+        ```
+
+        Son gros avantage : il est **déterministe**, donc **testable** (au contraire d'un
+        superviseur piloté par un vrai modèle, plus souple mais imprévisible).
+        """
+    )
+    return
 
 
 @app.cell
@@ -155,178 +187,77 @@ def _(mo):
     mo.callout(
         mo.md(
             r"""
-            ## ③ Exercice — écrivez le superviseur et la boucle
+            ## 🎯 Exercice — le superviseur et la boucle
 
-            1. Écrivez `superviseur(etat)` (voir syntaxe).
-            2. Écrivez la boucle qui, tant que ≠ `FIN`, appelle `WORKERS[etat_suivant]`
-               et **journalise** chaque décision (« qui a fait quoi »).
+            **Ce qu'on cherche à faire :** écrire deux choses.
+
+            1. `superviseur(etat)` → renvoie la prochaine étape (voir le schéma ci-dessus).
+            2. `faire_tourner()` → la boucle qui, tant que ≠ `FIN`, appelle le bon worker
+               **et journalise** chaque décision (« qui a fait quoi »).
+
+            Complétez la cellule ci-dessous. Le **journal** produit est votre piste d'audit.
             """
         ),
         kind="info",
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.accordion(
-        {
-            "🔓 ④ Afficher la solution": mo.md(
-                r"""
-                ```python
-                def superviseur(etat):
-                    if "alerte" not in etat:      return "DOC"
-                    if etat.get("besoin_calcul"): return "CALC"
-                    if "rapport" not in etat:     return "REPORT"
-                    return "FIN"
-
-                def run():
-                    etat, journal = {}, []
-                    while True:
-                        nxt = superviseur(etat)
-                        journal.append({"superviseur": nxt})
-                        if nxt == "FIN":
-                            break
-                        etat = WORKERS[nxt](etat)
-                        journal.append({"worker": nxt})
-                    return etat, journal
-                ```
-                Le **journal** est votre piste d'audit : on sait quel agent a produit quoi.
-                """
-            )
-        }
     )
     return
 
 
 @app.cell
 def _(WORKERS):
-    def superviseur(etat):
+    # ✏️  À TOI DE JOUER — une version qui marche est fournie ; réécris-la pour t'entraîner.
+    def superviseur(etat: dict) -> str:
         if "alerte" not in etat:
-            return "DOC"
-        if etat.get("besoin_calcul"):
-            return "CALC"
+            return "DETECTION"
+        if "controle" not in etat:
+            return "CONTROLE"
         if "rapport" not in etat:
-            return "REPORT"
+            return "SYNTHESE"
         return "FIN"
 
-    def run_chaine():
+    def faire_tourner(max_tours: int = 5):
         etat, journal = {}, []
-        while True:
-            nxt = superviseur(etat)
-            journal.append({"superviseur_choisit": nxt})
-            if nxt == "FIN":
+        for _ in range(max_tours):
+            etape = superviseur(etat)
+            journal.append({"superviseur_décide": etape})
+            if etape == "FIN":
                 break
-            etat = WORKERS[nxt](etat)
-            journal.append({"worker": nxt, "fait": True})
+            etat = WORKERS[etape](etat)
+            journal.append({"worker_exécuté": etape})
         return etat, journal
 
-    etat_final, journal = run_chaine()
-    {"journal": journal, "rapport": etat_final["rapport"]}
-    return etat_final, journal, superviseur
-
-
-@app.cell
-def _(mo, superviseur):
-    # Tests de routing (rigueur d'ingénieur) — s'exécutent à l'affichage
-    _t = [
-        superviseur({}) == "DOC",
-        superviseur({"alerte": {}, "besoin_calcul": True}) == "CALC",
-        superviseur({"alerte": {}, "besoin_calcul": False}) == "REPORT",
-        superviseur({"alerte": {}, "besoin_calcul": False, "rapport": "x"}) == "FIN",
-    ]
-    mo.callout(
-        mo.md(f"**Tests de routing** : {sum(_t)}/4 passent "
-              + ("✅" if all(_t) else "❌")),
-        kind="success" if all(_t) else "danger",
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-        ## ⑤ Commentaire
-
-        Un superviseur **à règles** se teste en 4 assertions (ci-dessus). Un superviseur
-        **LLM** apporte de la flexibilité mais coûte en contrôle — c'est l'arbitrage
-        « contrôle vs flexibilité » (S09). Plus la décision de routing est explicite,
-        plus le système est auditable.
-        """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""---""")
-    return
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NOTION 2 — Human-in-the-loop
-# ═══════════════════════════════════════════════════════════════════════════
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-        ## ① Notion 2 — Où placer l'humain ?
-
-        La validation humaine se place **en sortie de chaîne, avant toute décision**, et
-        surtout **sur les anomalies à fort enjeu** (S14/S16). Ici, l'auditeur valide ou
-        rejette l'alerte avant restitution.
-
-        ## ② Syntaxe — un point de validation réactif
-
-        En notebook, on remplace le `input()` bloquant par un **interrupteur marimo**
-        dont la valeur circule, réactive, dans la suite du flow.
-        """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    seuil_hitl = mo.ui.slider(1.0, 10.0, value=3.0, step=0.5,
-                              label="Seuil de ratio déclenchant la validation humaine")
-    valider = mo.ui.switch(label="✅ Auditeur : je valide l'alerte")
-    mo.vstack([seuil_hitl, valider])
-    return seuil_hitl, valider
-
-
-@app.cell
-def _(mo):
-    mo.callout(
-        mo.md(
-            r"""
-            ## ③ Exercice — conditionner le HITL au risque
-
-            La validation ne doit être **demandée** que si le `ratio` de l'alerte dépasse
-            le seuil. Écrivez la logique qui : si `ratio > seuil` → statut dépend de
-            l'interrupteur `valider` ; sinon → « auto-validé (faible enjeu) ».
-            """
-        ),
-        kind="info",
-    )
-    return
+    etat_final, journal = faire_tourner()
+    {"journal": journal, "rapport": etat_final.get("rapport")}
+    return etat_final, faire_tourner, journal, superviseur
 
 
 @app.cell
 def _(mo):
     mo.accordion(
         {
-            "🔓 ④ Afficher la solution": mo.md(
+            "🔓 Solution — superviseur + boucle": mo.md(
                 r"""
                 ```python
-                ratio = etat_final["alerte"]["ratio"]
-                if ratio > seuil_hitl.value:
-                    statut = "VALIDÉ" if valider.value else "EN ATTENTE / REJETÉ"
-                else:
-                    statut = "AUTO-VALIDÉ (faible enjeu)"
+                def superviseur(etat):
+                    if "alerte"   not in etat: return "DETECTION"
+                    if "controle" not in etat: return "CONTROLE"
+                    if "rapport"  not in etat: return "SYNTHESE"
+                    return "FIN"
+
+                def faire_tourner(max_tours=5):
+                    etat, journal = {}, []
+                    for _ in range(max_tours):
+                        etape = superviseur(etat)              # 1. il décide
+                        journal.append({"superviseur_décide": etape})
+                        if etape == "FIN":
+                            break
+                        etat = WORKERS[etape](etat)            # 2. le worker agit
+                        journal.append({"worker_exécuté": etape})
+                    return etat, journal
                 ```
-                La décision (et *pourquoi* elle a été requise) entre dans le journal :
-                en audit, une validation est une **trace signée**, pas un clic perdu.
+
+                Remarquez que le superviseur **ne calcule rien** : il *lit* l'état et
+                *oriente*. Toute l'intelligence de coordination tient dans ces quatre `if`.
                 """
             )
         }
@@ -335,16 +266,42 @@ def _(mo):
 
 
 @app.cell
-def _(etat_final, mo, seuil_hitl, valider):
-    ratio = etat_final["alerte"]["ratio"]
-    if ratio > seuil_hitl.value:
-        statut = "VALIDÉ" if valider.value else "EN ATTENTE / REJETÉ"
-        raison = f"ratio {ratio}× > seuil {seuil_hitl.value} → humain requis"
-    else:
-        statut = "AUTO-VALIDÉ (faible enjeu)"
-        raison = f"ratio {ratio}× ≤ seuil {seuil_hitl.value}"
-    mo.callout(mo.md(f"**Statut de l'alerte : {statut}**  \n*{raison}*"),
-               kind="success" if statut.startswith("VALIDÉ") or statut.startswith("AUTO") else "warn")
+def _(etat_final, journal, mo):
+    mo.md(
+        f"""
+        ## Résultat sur nos données
+
+        Le journal montre la circulation, étape par étape :
+
+        ```json
+        {journal}
+        ```
+
+        Et l'alerte rédigée par le worker Synthèse :
+
+        > {etat_final.get("rapport")}
+
+        Sur notre extrait, la détection pointe **Brasserie Dorée** (salaires nettement plus
+        élevés). Le **journal** dit *quel agent a produit quoi* — c'est votre traçabilité.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, superviseur):
+    # On peut TESTER le superviseur sans rien exécuter d'autre (déterminisme) :
+    _tests = [
+        superviseur({}) == "DETECTION",
+        superviseur({"alerte": {}}) == "CONTROLE",
+        superviseur({"alerte": {}, "controle": {}}) == "SYNTHESE",
+        superviseur({"alerte": {}, "controle": {}, "rapport": "x"}) == "FIN",
+    ]
+    mo.callout(
+        mo.md(f"**Tests de routing : {sum(_tests)}/4 réussis** "
+              + ("✅ — un superviseur à règles se teste en 4 lignes." if all(_tests) else "❌")),
+        kind="success" if all(_tests) else "danger",
+    )
     return
 
 
@@ -352,18 +309,58 @@ def _(etat_final, mo, seuil_hitl, valider):
 def _(mo):
     mo.md(
         r"""
-        ## ⑤ Commentaire
+        ---
+        # 4. L'humain dans la boucle (HITL)
 
-        Bougez le curseur et l'interrupteur ci-dessus : le statut se recalcule tout seul.
-        C'est l'équivalent réactif du **node Human Input**. Le HITL n'a de valeur que si
-        l'humain a le contexte pour trancher — d'où l'importance d'un rapport **lisible
-        et sourcé**.
+        Une chaîne d'audit ne doit pas décider seule sur un cas à fort enjeu. On place une
+        **validation humaine** — l'auditeur valide ou rejette — **en sortie de chaîne, avant
+        toute décision**, et surtout **quand l'enjeu est fort** (un écart qui pourrait
+        déclencher un redressement).
+
+        Réglez le **seuil** et l'**interrupteur** ci-dessous : la décision se recalcule toute
+        seule. C'est l'équivalent, en notebook, du *node Human Input* de Flowise.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    seuil = mo.ui.slider(1.0, 8.0, value=1.5, step=0.5,
+                         label="Seuil de ratio qui exige une validation humaine")
+    valider = mo.ui.switch(label="✅ Auditeur : je valide l'alerte")
+    mo.vstack([seuil, valider])
+    return seuil, valider
+
+
+@app.cell
+def _(etat_final, mo, seuil, valider):
+    ratio = etat_final["alerte"]["ratio"]
+    if ratio >= seuil.value:
+        decision = "VALIDÉE ✅" if valider.value else "EN ATTENTE ⏸️ (l'auditeur n'a pas encore validé)"
+        pourquoi = f"ratio {ratio}× ≥ seuil {seuil.value} → **enjeu fort, humain requis**"
+    else:
+        decision = "AUTO-VALIDÉE (faible enjeu)"
+        pourquoi = f"ratio {ratio}× < seuil {seuil.value} → validation humaine non requise"
+    mo.callout(mo.md(f"**Alerte : {decision}**  \n{pourquoi}"),
+               kind="success" if "VALID" in decision else "warn")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        La décision humaine (et *pourquoi* elle a été demandée) devrait **entrer dans le
+        journal** : en audit, une validation n'est pas un clic perdu, c'est une **trace
+        signée**.
 
         ---
-        ### ✅ Récap J6
-        - Le superviseur = **machine à états** (un état/tour), testable sans LLM.
-        - Chaque worker a **un** rôle → traçabilité « qui a fait quoi ».
-        - Le HITL se place sur les **anomalies à fort enjeu**, et se journalise.
+        ## ✅ À emporter
+        - Un seul agent qui fait tout = qualité en baisse. **Spécialisez** en workers.
+        - Le **superviseur** est une machine à états : il *répartit*, il ne *fait* pas.
+        - Chaque worker a **un** rôle → un **journal** « qui a fait quoi » exploitable.
+        - Le **HITL** se place sur les cas à fort enjeu, et se journalise.
         """
     )
     return
