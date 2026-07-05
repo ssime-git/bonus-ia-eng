@@ -247,19 +247,48 @@ def _(mo):
 @app.cell
 def _(df):
     # ✏️  À TOI DE JOUER — complète cette fonction, puis exécute la cellule.
-    #     (tu peux la réécrire entièrement : c'est ton bac à sable)
 
     def masse_salariale(etablissement: str) -> str:
-        sous_ensemble = df[df["Etablissement"] == etablissement]
-        if len(sous_ensemble) == 0:
-            dispo = ", ".join(sorted(df["Etablissement"].unique()))
-            return f"Établissement inconnu. Disponibles : {dispo}"
-        total = int(sous_ensemble["Brut"].sum())
-        return f"Masse salariale de {etablissement} : {total} €"
+        # TODO 1 : filtrer df sur la colonne "Etablissement"
+        # TODO 2 : si aucune ligne → renvoyer un message d'erreur qui liste les
+        #          établissements disponibles (df["Etablissement"].unique())
+        # TODO 3 : sinon → renvoyer f"Masse salariale de {etablissement} : {total} €"
+        #          avec total = somme (entière) de la colonne "Brut"
+        return "À compléter"
 
-    # petit test rapide :
+    # petit test rapide (doit afficher 14780 € une fois complété) :
     masse_salariale("Le Chaudron")
     return (masse_salariale,)
+
+
+@app.cell(hide_code=True)
+def _(df, masse_salariale, mo):
+    # Vérification automatique : la suite du notebook utilise TA version dès
+    # qu'elle est correcte — et une version de référence en attendant.
+    def _ref(etablissement: str) -> str:
+        _sous = df[df["Etablissement"] == etablissement]
+        if len(_sous) == 0:
+            _dispo = ", ".join(sorted(df["Etablissement"].unique()))
+            return f"Établissement inconnu. Disponibles : {_dispo}"
+        return f"Masse salariale de {etablissement} : {int(_sous['Brut'].sum())} €"
+
+    try:
+        _ok = ("14780" in str(masse_salariale("Le Chaudron"))
+               and "compléter" not in str(masse_salariale("Chez Paul")).lower()
+               and "14780" not in str(masse_salariale("Chez Paul")))
+    except Exception:
+        _ok = False
+    masse_salariale_active = masse_salariale if _ok else _ref
+    mo.callout(
+        mo.md("✅ **Ta version de `masse_salariale` passe les tests** — c'est elle qui "
+              "alimente toute la suite du notebook."
+              if _ok else
+              "✏️ **Exercice à compléter** (cellule ci-dessus). En attendant, la suite du "
+              "notebook tourne avec une version de référence — cherche, puis compare avec "
+              "la 🔓 Solution ci-dessous."),
+        kind="success" if _ok else "warn",
+    )
+    return (masse_salariale_active,)
 
 
 @app.cell(hide_code=True)
@@ -297,13 +326,13 @@ def _(df, mo):
 
 
 @app.cell(hide_code=True)
-def _(masse_salariale, mo):
+def _(masse_salariale_active, mo):
     mo.md(
         f"""
         **Vérifions les deux cas :**
 
-        - `masse_salariale("Le Chaudron")` → *{masse_salariale("Le Chaudron")}*
-        - `masse_salariale("Chez Paul")` → *{masse_salariale("Chez Paul")}*
+        - `masse_salariale("Le Chaudron")` → *{masse_salariale_active("Le Chaudron")}*
+        - `masse_salariale("Chez Paul")` → *{masse_salariale_active("Chez Paul")}*
 
         Remarquez : **aucun modèle d'IA n'est intervenu**. Un outil, c'est du Python normal
         et déterministe. Le modèle, lui, ne fera que *choisir* de l'appeler. C'est l'objet
@@ -434,33 +463,63 @@ def _(mo):
 
 
 @app.cell
-def _(masse_salariale, modele_simule):
+def _(masse_salariale_active):
     # Le registre d'outils : le programme s'en sert pour retrouver une fonction par son nom.
-    OUTILS = {"masse_salariale": masse_salariale}
+    OUTILS = {"masse_salariale": masse_salariale_active}
 
-    # ✏️  À TOI DE JOUER — complète la boucle (une version qui marche est fournie ;
-    #     essaie de la réécrire de mémoire, ou modifie-la pour expérimenter).
+    # ✏️  À TOI DE JOUER — complète la boucle de l'agent, puis exécute la cellule.
     def executer_agent(question: str, max_tours: int = 4):
         trace = []
-        for tour in range(1, max_tours + 1):
-            decision = modele_simule(question)            # 1. demander au modèle
-            if "reponse" in decision:                     # 2. réponse directe ? → fin
-                return decision["reponse"], trace
-            nom = decision["outil"]                        # 3. sinon, exécuter l'outil
-            args = decision["arguments"]
-            resultat = OUTILS[nom](**args)                #    (le programme exécute)
-            trace.append({"tour": tour, "outil": nom, "arguments": args, "resultat": resultat})
-            # Ici, notre modèle simulé conclut après un outil : on renvoie le résultat.
-            return resultat, trace
-        return "Trop de tours — on s'arrête.", trace
+        # TODO — pour chaque tour de 1 à max_tours :
+        #   1. decision = modele_simule(question)          ← demander au modèle
+        #   2. si "reponse" est dans decision → return decision["reponse"], trace
+        #   3. sinon : nom = decision["outil"] ; args = decision["arguments"]
+        #      resultat = OUTILS[nom](**args)              ← le programme exécute
+        #      ajouter {"tour": tour, "outil": nom, "arguments": args,
+        #               "resultat": resultat} à trace, puis return resultat, trace
+        # (après la boucle : return "Trop de tours — on s'arrête.", trace)
+        return "À compléter", trace
 
-    reponse, trace = executer_agent("Quelle est la masse salariale du Chaudron ?")
-    {"réponse": reponse, "trace": trace}
-    return OUTILS, executer_agent, reponse, trace
+    executer_agent("Quelle est la masse salariale du Chaudron ?")
+    return OUTILS, executer_agent
 
 
 @app.cell(hide_code=True)
-def _(masse_salariale, mo, modele_simule):
+def _(OUTILS, executer_agent, mo, modele_simule):
+    # Vérification automatique : la suite utilise TA boucle dès qu'elle est correcte.
+    def _ref(question, max_tours=4):
+        _trace = []
+        for _tour in range(1, max_tours + 1):
+            _decision = modele_simule(question)
+            if "reponse" in _decision:
+                return _decision["reponse"], _trace
+            _nom, _args = _decision["outil"], _decision["arguments"]
+            _resultat = OUTILS[_nom](**_args)
+            _trace.append({"tour": _tour, "outil": _nom,
+                           "arguments": _args, "resultat": _resultat})
+            return _resultat, _trace
+        return "Trop de tours — on s'arrête.", _trace
+
+    _q = "Quelle est la masse salariale du Chaudron ?"
+    try:
+        _ok = executer_agent(_q) == _ref(_q) and executer_agent("Quel temps fait-il ?") == _ref("Quel temps fait-il ?")
+    except Exception:
+        _ok = False
+    executer_agent_active = executer_agent if _ok else _ref
+    reponse, trace = executer_agent_active(_q)
+    mo.callout(
+        mo.md("✅ **Ta boucle `executer_agent` passe les tests** — c'est elle qui tourne "
+              "ci-dessous."
+              if _ok else
+              "✏️ **Exercice à compléter** (cellule ci-dessus). En attendant, la suite du "
+              "notebook tourne avec une boucle de référence — voir la 🔓 Solution."),
+        kind="success" if _ok else "warn",
+    )
+    return executer_agent_active, reponse, trace
+
+
+@app.cell(hide_code=True)
+def _(masse_salariale_active, mo, modele_simule):
     # La solution est EXÉCUTÉE ici même : le code affiché est garanti fonctionnel.
     _code = '''
     OUTILS = {"masse_salariale": masse_salariale}
@@ -480,7 +539,7 @@ def _(masse_salariale, mo, modele_simule):
         return "Trop de tours.", trace
 '''
     _code = __import__('textwrap').dedent(_code)
-    _ns = {"masse_salariale": masse_salariale, "modele_simule": modele_simule}
+    _ns = {"masse_salariale": masse_salariale_active, "modele_simule": modele_simule}
     exec(_code, _ns)
     _reponse, _trace = _ns["executer_agent"]("Quelle est la masse salariale du Chaudron ?")
     mo.accordion(
@@ -530,7 +589,7 @@ def _(mo, trace):
 
 
 @app.cell(hide_code=True)
-def _(executer_agent, mo):
+def _(executer_agent_active, mo):
     mo.md(
         f"""
         ### Essayez vous-même
@@ -539,9 +598,9 @@ def _(executer_agent, mo):
         testez ici mentalement le comportement :
 
         - question sur un établissement connu → l'agent appelle l'outil :
-          *{executer_agent("masse salariale de la Brasserie Dorée")[0]}*
+          *{executer_agent_active("masse salariale de la Brasserie Dorée")[0]}*
         - question hors sujet → l'agent s'abstient :
-          *{executer_agent("Quel est le sens de la vie ?")[0]}*
+          *{executer_agent_active("Quel est le sens de la vie ?")[0]}*
 
         L'agent **ne devine jamais** : soit il a un outil et l'utilise, soit il le dit.
         C'est ça, un agent d'audit digne de confiance.

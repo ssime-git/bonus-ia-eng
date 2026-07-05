@@ -166,19 +166,55 @@ def _(mo):
 
 
 @app.cell
-def _(SOURCES_VALIDES, re):
-    # ✏️  À TOI DE JOUER — versions fonctionnelles fournies ; réécris-les pour t'entraîner.
+def _():
+    # ✏️  À TOI DE JOUER — complète les deux vérificateurs, puis exécute la cellule.
     def verif_refus(reponse: str) -> bool:
-        mots = ["ne sais pas", "ne dispose", "inconnu", "pas de donnée", "absente"]
-        return any(m in reponse.lower() for m in mots)
+        # TODO : renvoyer True si la réponse contient un marqueur de refus, parmi :
+        # "ne sais pas", "ne dispose", "inconnu", "pas de donnée", "absente"
+        # (pense à reponse.lower() ; any(...) rend ça élégant)
+        return False
 
     def verif_source(reponse: str) -> bool:
-        citees = re.findall(r"PROC-[A-Z]+-\d+", reponse)
-        return all(src in SOURCES_VALIDES for src in citees)  # aucune source inventée
+        # TODO : extraire les références avec re.findall(r"PROC-[A-Z]+-\d+", reponse)
+        # et renvoyer True seulement si TOUTES sont dans SOURCES_VALIDES (all(...))
+        return False
 
     {"refus détecté ?": verif_refus("Je ne dispose pas de cette donnée."),
      "source PROC-PAIE-99 acceptée ?": verif_source("Voir PROC-PAIE-99")}
     return verif_refus, verif_source
+
+
+@app.cell(hide_code=True)
+def _(SOURCES_VALIDES, mo, re, verif_refus, verif_source):
+    # Vérification automatique : le harnais utilise TES vérificateurs dès
+    # qu'ils sont corrects — et une version de référence en attendant.
+    def _refus_ref(reponse):
+        _mots = ["ne sais pas", "ne dispose", "inconnu", "pas de donnée", "absente"]
+        return any(m in reponse.lower() for m in _mots)
+
+    def _source_ref(reponse):
+        _citees = re.findall(r"PROC-[A-Z]+-\d+", reponse)
+        return all(_src in SOURCES_VALIDES for _src in _citees)
+
+    try:
+        _ok = (verif_refus("Je ne dispose pas de cette donnée.") is True
+               and verif_refus("La masse salariale est de 14780 €.") is False
+               and verif_source("Voir PROC-PAIE-01") is True
+               and verif_source("Voir PROC-PAIE-99") is False)
+    except Exception:
+        _ok = False
+    verif_refus_active = verif_refus if _ok else _refus_ref
+    verif_source_active = verif_source if _ok else _source_ref
+    mo.callout(
+        mo.md("✅ **Tes deux vérificateurs passent les tests** — ce sont eux qui notent "
+              "les agents ci-dessous."
+              if _ok else
+              "✏️ **Exercice à compléter** (cellule ci-dessus). En attendant, le harnais "
+              "tourne avec des vérificateurs de référence — cherche, puis compare avec "
+              "la 🔓 Solution ci-dessous."),
+        kind="success" if _ok else "warn",
+    )
+    return verif_refus_active, verif_source_active
 
 
 @app.cell(hide_code=True)
@@ -220,15 +256,15 @@ def _(SOURCES_VALIDES, mo, re):
 
 
 @app.cell
-def _(masse, nombre_dans, verif_refus, verif_source):
+def _(masse, nombre_dans, verif_refus_active, verif_source_active):
     # Le jeu de questions-tests (vérité calculée via masse / vérificateurs)
     QUESTIONS = [
         {"id": "Q1 · chiffre", "question": "Masse salariale du Chaudron ?",
          "verifie": lambda r: nombre_dans(r) == masse("Le Chaudron")},
         {"id": "Q2 · refus", "question": "Masse salariale de la Pizzeria Bella (absente) ?",
-         "verifie": verif_refus},
+         "verifie": verif_refus_active},
         {"id": "Q3 · source", "question": "Base des cotisations ? Cite ta source.",
-         "verifie": lambda r: verif_source(r) and "PROC-PAIE-01" in r},
+         "verifie": lambda r: verif_source_active(r) and "PROC-PAIE-01" in r},
     ]
     return (QUESTIONS,)
 

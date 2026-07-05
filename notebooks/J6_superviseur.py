@@ -205,9 +205,35 @@ def _(mo):
 
 
 @app.cell
-def _(WORKERS):
-    # ✏️  À TOI DE JOUER — une version qui marche est fournie ; réécris-la pour t'entraîner.
+def _():
+    # ✏️  À TOI DE JOUER — complète les deux fonctions, puis exécute la cellule.
     def superviseur(etat: dict) -> str:
+        # TODO — la machine à états (voir le schéma plus haut) :
+        #   "alerte" absente de etat    → return "DETECTION"
+        #   "controle" absente          → return "CONTROLE"
+        #   "rapport" absente           → return "SYNTHESE"
+        #   sinon                       → return "FIN"
+        return "FIN"
+
+    def faire_tourner(max_tours: int = 5):
+        etat, journal = {}, []
+        # TODO — au plus max_tours fois :
+        #   1. etape = superviseur(etat)
+        #   2. ajouter {"superviseur_décide": etape} au journal
+        #   3. si etape == "FIN" → sortir de la boucle
+        #   4. sinon : etat = WORKERS[etape](etat)
+        #      et ajouter {"worker_exécuté": etape} au journal
+        return etat, journal
+
+    faire_tourner()
+    return faire_tourner, superviseur
+
+
+@app.cell(hide_code=True)
+def _(WORKERS, faire_tourner, mo, superviseur):
+    # Vérification automatique : la suite du notebook utilise TES fonctions dès
+    # qu'elles sont correctes — et une version de référence en attendant.
+    def _sup_ref(etat):
         if "alerte" not in etat:
             return "DETECTION"
         if "controle" not in etat:
@@ -216,20 +242,39 @@ def _(WORKERS):
             return "SYNTHESE"
         return "FIN"
 
-    def faire_tourner(max_tours: int = 5):
-        etat, journal = {}, []
+    def _tourner_ref(max_tours=5):
+        _etat, _journal = {}, []
         for _ in range(max_tours):
-            etape = superviseur(etat)
-            journal.append({"superviseur_décide": etape})
-            if etape == "FIN":
+            _etape = _sup_ref(_etat)
+            _journal.append({"superviseur_décide": _etape})
+            if _etape == "FIN":
                 break
-            etat = WORKERS[etape](etat)
-            journal.append({"worker_exécuté": etape})
-        return etat, journal
+            _etat = WORKERS[_etape](_etat)
+            _journal.append({"worker_exécuté": _etape})
+        return _etat, _journal
 
-    etat_final, journal = faire_tourner()
-    {"journal": journal, "rapport": etat_final.get("rapport")}
-    return etat_final, faire_tourner, journal, superviseur
+    try:
+        _routage_ok = all([
+            superviseur({}) == "DETECTION",
+            superviseur({"alerte": {}}) == "CONTROLE",
+            superviseur({"alerte": {}, "controle": {}}) == "SYNTHESE",
+            superviseur({"alerte": {}, "controle": {}, "rapport": "x"}) == "FIN",
+        ])
+        _etat_essai, _journal_essai = faire_tourner()
+        _ok = _routage_ok and bool(_etat_essai.get("rapport")) and len(_journal_essai) >= 7
+    except Exception:
+        _ok = False
+    etat_final, journal = (faire_tourner() if _ok else _tourner_ref())
+    mo.callout(
+        mo.md("✅ **Ton superviseur et ta boucle passent les tests** — ce sont eux qui "
+              "produisent le journal ci-dessous."
+              if _ok else
+              "✏️ **Exercice à compléter** (cellule ci-dessus). En attendant, la suite du "
+              "notebook tourne avec une version de référence — cherche, puis compare avec "
+              "la 🔓 Solution ci-dessous."),
+        kind="success" if _ok else "warn",
+    )
+    return etat_final, journal
 
 
 @app.cell(hide_code=True)

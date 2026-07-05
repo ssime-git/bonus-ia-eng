@@ -166,16 +166,48 @@ def _(mo):
 
 @app.cell
 def _(df):
-    # ✏️  À TOI DE JOUER — une version qui marche est fournie ; réécris-la pour t'entraîner.
+    # ✏️  À TOI DE JOUER — complète cette vue, puis exécute la cellule.
     def masse_par_sexe(etablissement: str):
-        sous_ensemble = df[df["Etablissement"] == etablissement]
-        if len(sous_ensemble) == 0:
-            return "Établissement inconnu (refus propre) — vérifiez le nom."
-        ventilation = sous_ensemble.groupby("Sexe")["Brut"].sum().to_dict()
-        return {"etablissement": etablissement, "masse_par_sexe": ventilation}
+        # TODO 1 : filtrer df sur l'établissement demandé
+        # TODO 2 : si aucune ligne → renvoyer un message de refus PROPRE (une str)
+        # TODO 3 : sinon → ventilation = groupby("Sexe")["Brut"].sum().to_dict()
+        #          et renvoyer {"etablissement": ..., "masse_par_sexe": ventilation}
+        return "À compléter"
 
     masse_par_sexe("Le Chaudron")
     return (masse_par_sexe,)
+
+
+@app.cell(hide_code=True)
+def _(df, masse_par_sexe, mo):
+    # Vérification automatique : la suite du notebook utilise TA vue dès
+    # qu'elle est correcte — et une version de référence en attendant.
+    def _ref(etablissement: str):
+        _sous = df[df["Etablissement"] == etablissement]
+        if len(_sous) == 0:
+            return "Établissement inconnu (refus propre) — vérifiez le nom."
+        _ventilation = _sous.groupby("Sexe")["Brut"].sum().to_dict()
+        return {"etablissement": etablissement, "masse_par_sexe": _ventilation}
+
+    try:
+        _res = masse_par_sexe("Le Chaudron")
+        _ok = (isinstance(_res, dict)
+               and _res.get("masse_par_sexe") == _ref("Le Chaudron")["masse_par_sexe"]
+               and isinstance(masse_par_sexe("Chez Paul"), str)
+               and "compléter" not in masse_par_sexe("Chez Paul").lower())
+    except Exception:
+        _ok = False
+    masse_par_sexe_active = masse_par_sexe if _ok else _ref
+    mo.callout(
+        mo.md("✅ **Ta vue `masse_par_sexe` passe les tests** — c'est elle qui alimente "
+              "toute la suite du notebook."
+              if _ok else
+              "✏️ **Exercice à compléter** (cellule ci-dessus). En attendant, la suite du "
+              "notebook tourne avec une version de référence — cherche, puis compare avec "
+              "la 🔓 Solution ci-dessous."),
+        kind="success" if _ok else "warn",
+    )
+    return (masse_par_sexe_active,)
 
 
 @app.cell(hide_code=True)
@@ -213,13 +245,13 @@ def _(df, mo):
 
 
 @app.cell(hide_code=True)
-def _(masse_par_sexe, mo):
+def _(masse_par_sexe_active, mo):
     mo.md(
         f"""
         **Vérifions les deux cas :**
 
-        - connu → `{masse_par_sexe("Le Chaudron")}`
-        - inconnu → *{masse_par_sexe("Chez Paul")}*
+        - connu → `{masse_par_sexe_active("Le Chaudron")}`
+        - inconnu → *{masse_par_sexe_active("Chez Paul")}*
 
         Aucune ligne nominative ne sort : juste deux totaux. C'est une **vue**.
         """
@@ -378,12 +410,12 @@ def _(mo):
 
 
 @app.cell
-async def _(cle_groq, lancer, masse_par_sexe, mo, question_reelle):
+async def _(cle_groq, lancer, masse_par_sexe_active, mo, question_reelle):
     import json as _json
     import sys as _sys
 
     # L'agent ne connaît QUE la vue : c'est elle qui gouverne l'accès aux données.
-    _OUTILS = {"masse_par_sexe": lambda etablissement: str(masse_par_sexe(etablissement))}
+    _OUTILS = {"masse_par_sexe": lambda etablissement: str(masse_par_sexe_active(etablissement))}
     _DESCRIPTION_OUTILS = [{
         "type": "function",
         "function": {
