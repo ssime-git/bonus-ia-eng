@@ -1,0 +1,3 @@
+pandas>=2.0
+tiktoken>=0.5
+openai>=1.30   # seulement pour les appels LLM (chat). Parties "pur Python" : pandas + tiktoken suffisent.

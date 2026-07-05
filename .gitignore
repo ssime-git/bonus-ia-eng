@@ -1,0 +1,18 @@
+# ── Données NOMINATIVES : ne jamais publier ──────────────────────────────────
+# Le dépôt ne versionne QUE public/data/ (minimisé, sans colonne "Salarie").
+# NB : "/data/" ne vise que la racine — public/data/ reste bien versionné.
+/data/
+*.zip
+
+# ── Python ──
+__pycache__/
+*.pyc
+.venv/
+.uv/
+*.egg-info/
+
+# ── Build marimo / GitHub Pages ──
+_site/
+
+# ── Divers ──
+.DS_Store
