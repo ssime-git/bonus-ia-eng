@@ -389,7 +389,7 @@ def _(mo):
     return seuil, valider
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(etat_final, mo, seuil, valider):
     ratio = etat_final["alerte"]["ratio"]
     if ratio >= seuil.value:

@@ -324,7 +324,7 @@ def _(df, pd):
     return comparaison, compter_tokens
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(comparaison, mo):
     _gros = int(comparaison.loc[comparaison["contenu"] == "gros fichier (×200)", "tokens≈"].iloc[0])
     _vue = int(comparaison.loc[comparaison["contenu"] == "vue agrégée", "tokens≈"].iloc[0])

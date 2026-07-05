@@ -333,7 +333,7 @@ def _(AGENTS, choix, evaluer):
     return (resultats,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(choix, mo, resultats):
     note = resultats["réussi"].mean()
     mo.callout(
